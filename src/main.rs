@@ -123,6 +123,33 @@ fn set_clip(url: String) -> Json<APIResponse> {
         }
     };
 
+    // Check for existence of the URL in the database
+    let existing_clip = get_db_clip(url.to_string());
+
+    match existing_clip {
+        Ok(existing_clip) => {
+            match existing_clip {
+                Some(existing_clip) => {
+                    let response = APIResponse {
+                        status: APIStatus::Success,
+                        result: existing_clip,
+                    };
+
+                    return Json(response);
+                }
+                None => {}
+            };
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Json(response);
+        }
+    };
+
     let code = gen_id(5);
     let result = insert_db_clip(code.clone(), url.to_string());
     match result {
