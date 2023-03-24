@@ -21,7 +21,7 @@ fn index() -> &'static str {
 }
 */
 
-static DB_URL: &str = "mysql://root:password@localhost:3307/db_name";
+static DB_URL: &str = "mysql://root:@localhost:3306/iclip";
 
 fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     let pool = Pool::new(DB_URL)?;

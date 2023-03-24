@@ -1,0 +1,11 @@
+image:
+  file: .gitpod.Dockerfile
+tasks:
+  - init: cargo build
+    command: cargo watch -x run
+  - command: |
+      bash scripts/secrets.sh;
+      gp ports await 3306 &&
+      mysql -e "CREATE DATABASE iclip;";
+      mysql < scripts/db.sql;
+
