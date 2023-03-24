@@ -876,6 +876,7 @@ name = "interclip-server"
 version = "0.1.0"
 dependencies = [
  "mysql",
+ "rand",
  "rocket",
  "serde",
  "serde_json",

@@ -1,5 +1,6 @@
 use mysql::prelude::*;
 use mysql::*;
+use rand::Rng;
 
 use std::result::Result;
 use std::result::Result::Ok;
@@ -10,6 +11,7 @@ use rocket::serde::{Deserialize, Serialize};
 
 extern crate serde;
 extern crate serde_json;
+extern crate rand;
 
 #[macro_use]
 extern crate rocket;
@@ -33,15 +35,22 @@ fn index() -> &'static str {
     "OK"
 }
 
-/*
-"examples": {
-    "0": {
-    "value": "{\"status\":\"success\",\"result\":\"https:\\/\\/taskord.com\\/\"}"
-    }
-}
-*/
-
 static DB_URL: &str = "mysql://root:@localhost:3306/iclip";
+
+/* Generated an alphanumeric ID (only lowercase letters), n letters long */
+fn gen_id (length: usize) -> String {
+    let mut code = String::new();
+    let mut rng = rand::thread_rng();
+    let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
+
+    for _ in 0..length {
+        let random_char = rng.gen_range(0..chars.len());
+        code.push(chars[random_char]);
+    }
+
+    code
+
+}
 
 fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     let pool = Pool::new(DB_URL)?;
@@ -66,6 +75,50 @@ fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     };
 
     Ok(result)
+}
+
+fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
+    let pool = Pool::new(DB_URL)?;
+    let conn = pool.get_conn();
+
+    let mut conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            println!("Error: {}", e);
+            return Err(e);
+        }
+    };
+
+    let query = format!("INSERT INTO userurl (usr, url) VALUES ('{}', '{}')", code, url);
+    let result = conn.query_drop(query);
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+#[post("/set?<url>")]
+fn set_clip(url: String) -> Json<APIResponse> {
+    let code = gen_id(5);
+    let result = insert_db_clip(code.clone(), url);
+    match result {
+        Ok(_) => {
+            let response = APIResponse {
+                status: APIStatus::Success,
+                result: code,
+            };
+            return Json(response);
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Json(response);
+        }
+    }
 }
 
 #[get("/get?<code>")]
@@ -110,5 +163,5 @@ fn get_clip_empty() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/api", routes![index, get_clip, get_clip_empty])
+    rocket::build().mount("/api", routes![index, get_clip, get_clip_empty, set_clip])
 }
