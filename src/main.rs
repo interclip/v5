@@ -79,6 +79,32 @@ fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     Ok(result)
 }
 
+fn get_db_clip_by_url(url: String) -> Result<Option<String>, mysql::Error> {
+    let pool = Pool::new(DB_URL)?;
+    let conn = pool.get_conn();
+
+    let mut conn = match conn {
+        Ok(conn) => conn,
+        Err(e) => {
+            println!("Error: {}", e);
+            return Err(e);
+        }
+    };
+
+    let query = format!("SELECT usr FROM userurl WHERE url = '{}'", url);
+    let result = conn.query_first(query);
+
+    let result = match result {
+        Ok(result) => result,
+        Err(e) => {
+            println!("Error: {}", e);
+            return Err(e);
+        }
+    };
+
+    Ok(result)
+}
+
 fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
     let pool = Pool::new(DB_URL)?;
     let conn = pool.get_conn();
@@ -124,7 +150,7 @@ fn set_clip(url: String) -> Json<APIResponse> {
     };
 
     // Check for existence of the URL in the database
-    let existing_clip = get_db_clip(url.to_string());
+    let existing_clip = get_db_clip_by_url(url.to_string());
 
     match existing_clip {
         Ok(existing_clip) => {
