@@ -5,8 +5,28 @@ use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
 
+use rocket::serde::json::Json;
+use rocket::serde::{Deserialize, Serialize};
+
+extern crate serde;
+extern crate serde_json;
+
 #[macro_use]
 extern crate rocket;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct APIResponse {
+    status: APIStatus,
+    result: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+enum APIStatus {
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "error")]
+    Error,
+}
 
 #[get("/status")]
 fn index() -> &'static str {
@@ -49,21 +69,36 @@ fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
 }
 
 #[get("/get?<code>")]
-fn get_clip(code: String) -> String {
+fn get_clip(code: String) -> Json<APIResponse> {
     let result = get_db_clip(code);
     match result {
         Ok(result) => {
-            let result = match result {
-                Some(result) => result,
+            match result {
+                Some(result) => {
+                    let response = APIResponse {
+                        status: APIStatus::Success,
+                        result
+                    };
+
+                    return Json(response);
+                }
                 None => {
-                    return format!("get: {}", "this code does not exist");
+                    let response = APIResponse {
+                        status: APIStatus::Error,
+                        result: "clip not found".to_string()
+                    };
+
+                    return Json(response);
                 }
             };
-            return format!("get: {}", result);
         }
         Err(e) => {
             println!("Error: {}", e);
-            return format!("get: {}", "db prob");
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Json(response);
         }
     }
 }
