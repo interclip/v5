@@ -23,27 +23,49 @@ fn index() -> &'static str {
 
 static DB_URL: &str = "mysql://root:password@localhost:3307/db_name";
 
-fn get_db_clip(code: String) -> Result<String, mysql::Error> {
+fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     let pool = Pool::new(DB_URL)?;
-    let mut conn = pool.get_conn()?;
-    let query = format!("SELECT * FROM userurl WHERE usr = '{}'", code);
-    let result: Result<Vec<String>, mysql::Error> =
-        conn.query_map(query, |url| (url));
+    let conn = pool.get_conn();
 
-    let result = match result {
-        Ok(result) => result.get(0).unwrap().to_string(),
+    let mut conn = match conn {
+        Ok(conn) => conn,
         Err(e) => {
             println!("Error: {}", e);
             return Err(e);
         }
     };
 
-    Ok(result.to_string())
+    let query = format!("SELECT * FROM userurl WHERE usr = '{}'", code);
+    let result: Result<Vec<String>, mysql::Error> = conn.query_map(query, |url| (url));
+
+    let result = match result {
+        Ok(result) => result.get(0).cloned(),
+        Err(e) => {
+            return Err(e);
+        }
+    };
+
+    Ok(result)
 }
 
 #[get("/get?<code>")]
 fn get_clip(code: String) -> String {
-    format!("get: {}", code)
+    let result = get_db_clip(code);
+    match result {
+        Ok(result) => {
+            let result = match result {
+                Some(result) => result,
+                None => {
+                    return format!("get: {}", "this code does not exist");
+                }
+            };
+            return format!("get: {}", result);
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            return format!("get: {}", "db prob");
+        }
+    }
 }
 
 #[get("/get")]
