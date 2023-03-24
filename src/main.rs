@@ -11,9 +11,9 @@ use rocket::serde::{Deserialize, Serialize};
 
 use chrono::{Duration, Local};
 
+extern crate rand;
 extern crate serde;
 extern crate serde_json;
-extern crate rand;
 
 #[macro_use]
 extern crate rocket;
@@ -40,7 +40,7 @@ fn index() -> &'static str {
 static DB_URL: &str = "mysql://root:@localhost:3306/iclip";
 
 /* Generated an alphanumeric ID (only lowercase letters), n letters long */
-fn gen_id (length: usize) -> String {
+fn gen_id(length: usize) -> String {
     let mut code = String::new();
     let mut rng = rand::thread_rng();
     let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
@@ -51,7 +51,6 @@ fn gen_id (length: usize) -> String {
     }
 
     code
-
 }
 
 fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
@@ -66,12 +65,13 @@ fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
         }
     };
 
-    let query = format!("SELECT * FROM userurl WHERE usr = '{}'", code);
-    let result: Result<Vec<String>, mysql::Error> = conn.query_map(query, |url| (url));
+    let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
+    let result = conn.query_first(query);
 
     let result = match result {
-        Ok(result) => result.get(0).cloned(),
+        Ok(result) => result,
         Err(e) => {
+            println!("Error: {}", e);
             return Err(e);
         }
     };
@@ -95,7 +95,10 @@ fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
     let expires = start_date + Duration::days(30);
     let expiry_date = expires.format("%Y-%m-%d").to_string();
 
-    let query = format!("INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')", code, url, expiry_date);
+    let query = format!(
+        "INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')",
+        code, url, expiry_date
+    );
     let result = conn.query_drop(query);
 
     match result {
@@ -136,7 +139,7 @@ fn get_clip(code: String) -> Json<APIResponse> {
                 Some(result) => {
                     let response = APIResponse {
                         status: APIStatus::Success,
-                        result
+                        result,
                     };
 
                     return Json(response);
@@ -144,7 +147,7 @@ fn get_clip(code: String) -> Json<APIResponse> {
                 None => {
                     let response = APIResponse {
                         status: APIStatus::Error,
-                        result: "clip not found".to_string()
+                        result: "clip not found".to_string(),
                     };
 
                     return Json(response);
