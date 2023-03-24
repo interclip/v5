@@ -109,8 +109,22 @@ fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
 
 #[post("/set?<url>")]
 fn set_clip(url: String) -> Json<APIResponse> {
+
+    // Check if the URL is valid
+    let url = match url.parse::<url::Url>() {
+        Ok(url) => url,
+        Err(e) => {
+            println!("Error: {}", e);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "Invalid URL".to_string(),
+            };
+            return Json(response);
+        }
+    };
+
     let code = gen_id(5);
-    let result = insert_db_clip(code.clone(), url);
+    let result = insert_db_clip(code.clone(), url.to_string());
     match result {
         Ok(_) => {
             let response = APIResponse {
