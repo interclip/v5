@@ -9,6 +9,8 @@ use std::string::String;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 
+use chrono::{Duration, Local};
+
 extern crate serde;
 extern crate serde_json;
 extern crate rand;
@@ -89,9 +91,11 @@ fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
         }
     };
 
-    let expiration_date = "DATE_ADD(NOW(), INTERVAL 1 MONTH)"; 
+    let start_date = Local::now().naive_local();
+    let expires = start_date + Duration::days(30);
+    let expiry_date = expires.format("%Y-%m-%d").to_string();
 
-    let query = format!("INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')", code, url, expiration_date);
+    let query = format!("INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')", code, url, expiry_date);
     let result = conn.query_drop(query);
 
     match result {
