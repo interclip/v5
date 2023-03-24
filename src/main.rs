@@ -89,7 +89,9 @@ fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
         }
     };
 
-    let query = format!("INSERT INTO userurl (usr, url) VALUES ('{}', '{}')", code, url);
+    let expiration_date = "DATE_ADD(NOW(), INTERVAL 1 MONTH)"; 
+
+    let query = format!("INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')", code, url, expiration_date);
     let result = conn.query_drop(query);
 
     match result {
