@@ -64,8 +64,19 @@ struct FormData {
 }
 
 #[post("/set", data = "<form_data>")]
-fn set_clip(form_data: Form<FormData>, _rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+fn set_clip(
+    form_data: Form<FormData>,
+    _rate_limiter: RateLimiter,
+) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let url = &form_data.url;
+    if url.is_empty() {
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "No URL provided".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)));
+    }
+
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
         Err(e) => {
@@ -127,7 +138,18 @@ fn set_clip(form_data: Form<FormData>, _rate_limiter: RateLimiter) -> Result<Jso
 }
 
 #[get("/get?<code>")]
-fn get_clip(code: String, _rate_limiter: RateLimiter) -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
+fn get_clip(
+    code: String,
+    _rate_limiter: RateLimiter,
+) -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
+    if code.is_empty() {
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "No code provided".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)));
+    }
+
     let result = get_db_clip(code);
     match result {
         Ok(result) => {
@@ -162,8 +184,14 @@ fn get_clip(code: String, _rate_limiter: RateLimiter) -> Result<Custom<Json<APIR
 }
 
 #[get("/get")]
-fn get_clip_empty() -> String {
-    format!("get: {}", "no code")
+fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
+    return Err(Custom(
+        Status::BadRequest,
+        Json(APIResponse {
+            status: APIStatus::Error,
+            result: "No clip code provided in the request.".to_string(),
+        }),
+    ));
 }
 
 #[launch]
