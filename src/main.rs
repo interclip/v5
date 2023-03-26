@@ -13,6 +13,7 @@ use rocket::serde::json::Json;
 
 use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
 
+use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
 
 extern crate rand;
@@ -23,7 +24,7 @@ extern crate serde_json;
 extern crate rocket;
 
 #[get("/status")]
-fn status() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let result = get_db_clip("test".to_string());
 
     match result {
@@ -63,7 +64,7 @@ struct FormData {
 }
 
 #[post("/set", data = "<form_data>")]
-fn set_clip(form_data: Form<FormData>) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+fn set_clip(form_data: Form<FormData>, _rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let url = &form_data.url;
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
@@ -126,7 +127,7 @@ fn set_clip(form_data: Form<FormData>) -> Result<Json<APIResponse>, Custom<Json<
 }
 
 #[get("/get?<code>")]
-fn get_clip(code: String) -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
+fn get_clip(code: String, _rate_limiter: RateLimiter) -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
     let result = get_db_clip(code);
     match result {
         Ok(result) => {
@@ -167,8 +168,10 @@ fn get_clip_empty() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount(
-        "/api",
-        routes![status, get_clip, get_clip_empty, set_clip, set_clip_get],
-    )
+    rocket::build()
+        .mount(
+            "/api",
+            routes![status, get_clip, get_clip_empty, set_clip, set_clip_get],
+        )
+        .manage(RateLimiter::new())
 }
