@@ -23,8 +23,27 @@ extern crate serde_json;
 extern crate rocket;
 
 #[get("/status")]
-fn index() -> &'static str {
-    "OK"
+fn status() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+    let result = get_db_clip("test".to_string());
+
+    match result {
+        Ok(_) => {
+            let response = APIResponse {
+                status: APIStatus::Success,
+                result: "OK".to_string(),
+            };
+
+            return Ok(Json(response));
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
+    };
 }
 
 #[get("/set")]
@@ -148,5 +167,8 @@ fn get_clip_empty() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/api", routes![index, get_clip, get_clip_empty, set_clip, set_clip_get])
+    rocket::build().mount(
+        "/api",
+        routes![status, get_clip, get_clip_empty, set_clip, set_clip_get],
+    )
 }
