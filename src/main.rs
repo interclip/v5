@@ -46,7 +46,6 @@ struct FormData {
 #[post("/set", data = "<form_data>")]
 fn set_clip(form_data: Form<FormData>) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let url = &form_data.url;
-    // Check if the URL is valid
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
         Err(e) => {
