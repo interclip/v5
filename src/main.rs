@@ -26,6 +26,17 @@ fn index() -> &'static str {
     "OK"
 }
 
+#[get("/set")]
+fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+    return Err(Custom(
+        Status::MethodNotAllowed,
+        Json(APIResponse {
+            status: APIStatus::Error,
+            result: "For creating clips, only POST is allowed".to_string(),
+        }),
+    ));
+}
+
 #[post("/set?<url>")]
 fn set_clip(url: String) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     // Check if the URL is valid
@@ -131,5 +142,5 @@ fn get_clip_empty() -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/api", routes![index, get_clip, get_clip_empty, set_clip])
+    rocket::build().mount("/api", routes![index, get_clip, get_clip_empty, set_clip, set_clip_get])
 }
