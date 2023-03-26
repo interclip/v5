@@ -1,5 +1,5 @@
-use mysql::prelude::*;
-use mysql::*;
+mod utils;
+
 use rand::Rng;
 use rocket::http::Status;
 use rocket::response::status::Custom;
@@ -11,7 +11,7 @@ use std::string::String;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 
-use chrono::{Duration, Local};
+use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
 
 extern crate rand;
 extern crate serde;
@@ -39,8 +39,6 @@ fn index() -> &'static str {
     "OK"
 }
 
-static DB_URL: &str = "mysql://root:@localhost:3306/iclip";
-
 /* Generated an alphanumeric ID (only lowercase letters), n letters long */
 fn gen_id(length: usize) -> String {
     let mut code = String::new();
@@ -53,86 +51,6 @@ fn gen_id(length: usize) -> String {
     }
 
     code
-}
-
-fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
-    let pool = Pool::new(DB_URL)?;
-    let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
-        Err(e) => {
-            println!("Error: {}", e);
-            return Err(e);
-        }
-    };
-
-    let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
-    let result = conn.query_first(query);
-
-    let result = match result {
-        Ok(result) => result,
-        Err(e) => {
-            println!("Error: {}", e);
-            return Err(e);
-        }
-    };
-
-    Ok(result)
-}
-
-fn get_db_clip_by_url(url: String) -> Result<Option<String>, mysql::Error> {
-    let pool = Pool::new(DB_URL)?;
-    let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
-        Err(e) => {
-            println!("Error: {}", e);
-            return Err(e);
-        }
-    };
-
-    let query = format!("SELECT usr FROM userurl WHERE url = '{}'", url);
-    let result = conn.query_first(query);
-
-    let result = match result {
-        Ok(result) => result,
-        Err(e) => {
-            println!("Error: {}", e);
-            return Err(e);
-        }
-    };
-
-    Ok(result)
-}
-
-fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
-    let pool = Pool::new(DB_URL)?;
-    let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
-        Err(e) => {
-            println!("Error: {}", e);
-            return Err(e);
-        }
-    };
-
-    let start_date = Local::now().naive_local();
-    let expires = start_date + Duration::days(30);
-    let expiry_date = expires.format("%Y-%m-%d").to_string();
-
-    let query = format!(
-        "INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')",
-        code, url, expiry_date
-    );
-    let result = conn.query_drop(query);
-
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
 }
 
 #[post("/set?<url>")]
