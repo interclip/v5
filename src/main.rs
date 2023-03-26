@@ -1,6 +1,8 @@
 use mysql::prelude::*;
 use mysql::*;
 use rand::Rng;
+use rocket::http::Status;
+use rocket::response::status::Custom;
 
 use std::result::Result;
 use std::result::Result::Ok;
@@ -134,8 +136,7 @@ fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
 }
 
 #[post("/set?<url>")]
-fn set_clip(url: String) -> Json<APIResponse> {
-
+fn set_clip(url: String) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     // Check if the URL is valid
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
@@ -145,7 +146,7 @@ fn set_clip(url: String) -> Json<APIResponse> {
                 status: APIStatus::Error,
                 result: "Invalid URL".to_string(),
             };
-            return Json(response);
+            return Err(Custom(Status::BadRequest, Json(response)));
         }
     };
 
@@ -161,7 +162,7 @@ fn set_clip(url: String) -> Json<APIResponse> {
                         result: existing_clip,
                     };
 
-                    return Json(response);
+                    return Ok(Json(response));
                 }
                 None => {}
             };
@@ -172,7 +173,7 @@ fn set_clip(url: String) -> Json<APIResponse> {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Json(response);
+            return Err(Custom(Status::InternalServerError, Json(response)));
         }
     };
 
@@ -184,7 +185,7 @@ fn set_clip(url: String) -> Json<APIResponse> {
                 status: APIStatus::Success,
                 result: code,
             };
-            return Json(response);
+            return Ok(Json(response));
         }
         Err(e) => {
             println!("Error: {}", e);
@@ -192,13 +193,13 @@ fn set_clip(url: String) -> Json<APIResponse> {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Json(response);
+            return Err(Custom(Status::InternalServerError, Json(response)));
         }
     }
 }
 
 #[get("/get?<code>")]
-fn get_clip(code: String) -> Json<APIResponse> {
+fn get_clip(code: String) -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
     let result = get_db_clip(code);
     match result {
         Ok(result) => {
@@ -209,7 +210,7 @@ fn get_clip(code: String) -> Json<APIResponse> {
                         result,
                     };
 
-                    return Json(response);
+                    return Ok(Custom(Status::Created, Json(response)));
                 }
                 None => {
                     let response = APIResponse {
@@ -217,7 +218,7 @@ fn get_clip(code: String) -> Json<APIResponse> {
                         result: "clip not found".to_string(),
                     };
 
-                    return Json(response);
+                    return Err(Custom(Status::NotFound, Json(response)));
                 }
             };
         }
@@ -227,7 +228,7 @@ fn get_clip(code: String) -> Json<APIResponse> {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Json(response);
+            return Err(Custom(Status::InternalServerError, Json(response)));
         }
     }
 }
