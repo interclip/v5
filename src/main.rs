@@ -1,17 +1,18 @@
 mod utils;
 
-use rand::Rng;
 use rocket::http::Status;
 use rocket::response::status::Custom;
+use utils::id::gen_id;
 
 use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
 
 use rocket::serde::json::Json;
-use rocket::serde::{Deserialize, Serialize};
 
 use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
+
+use crate::utils::structs::{APIResponse, APIStatus};
 
 extern crate rand;
 extern crate serde;
@@ -20,37 +21,9 @@ extern crate serde_json;
 #[macro_use]
 extern crate rocket;
 
-#[derive(Serialize, Deserialize, Clone)]
-struct APIResponse {
-    status: APIStatus,
-    result: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-enum APIStatus {
-    #[serde(rename = "success")]
-    Success,
-    #[serde(rename = "error")]
-    Error,
-}
-
 #[get("/status")]
 fn index() -> &'static str {
     "OK"
-}
-
-/* Generated an alphanumeric ID (only lowercase letters), n letters long */
-fn gen_id(length: usize) -> String {
-    let mut code = String::new();
-    let mut rng = rand::thread_rng();
-    let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
-
-    for _ in 0..length {
-        let random_char = rng.gen_range(0..chars.len());
-        code.push(chars[random_char]);
-    }
-
-    code
 }
 
 #[post("/set?<url>")]
