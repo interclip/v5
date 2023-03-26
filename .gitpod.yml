@@ -9,3 +9,6 @@ tasks:
       mysql -e "CREATE DATABASE iclip;";
       mysql < scripts/db.sql;
 
+vscode:
+  extensions:
+    - rust-lang.rust-analyzer
