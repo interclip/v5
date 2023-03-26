@@ -8,6 +8,7 @@ use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
 
+use rocket::form::Form;
 use rocket::serde::json::Json;
 
 use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
@@ -37,8 +38,14 @@ fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     ));
 }
 
-#[post("/set?<url>")]
-fn set_clip(url: String) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+#[derive(FromForm)]
+struct FormData {
+    url: String,
+}
+
+#[post("/set", data = "<form_data>")]
+fn set_clip(form_data: Form<FormData>) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+    let url = &form_data.url;
     // Check if the URL is valid
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
