@@ -3,7 +3,7 @@ WORKDIR /app
 COPY . .
 RUN cargo install --path .
 
-FROM debian:buster-slim as runner
+FROM ubuntu:22.04 as runner
 RUN apt-get update && \
     apt-get install -y libssl1.1 && \
     rm -rf /var/lib/apt/lists/*
