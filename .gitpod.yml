@@ -1,3 +1,15 @@
+ports:
+  - port: 8000
+    onOpen: open-browser
+    visibility: public
+    name: App
+  - port: 3306
+    onOpen: ignore
+    name: MySQL Database
+  - port: 6379
+    onOpen: ignore
+    name: Redis
+
 image:
   file: .gitpod.Dockerfile
 tasks:
