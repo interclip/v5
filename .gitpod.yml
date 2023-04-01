@@ -2,7 +2,7 @@ ports:
   - port: 8000
     onOpen: open-browser
     visibility: public
-    name: App
+    name: Server
   - port: 3306
     onOpen: ignore
     name: MySQL Database
