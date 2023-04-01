@@ -13,7 +13,7 @@ pub fn cache_clip(code: &str, url: &str) -> Result<(), redis::RedisError> {
     Ok(())
 }
 
-pub fn get_cached_clip(code: &str) -> Result<Option<String>, redis::RedisError> {
+pub fn get_cached_clip(code: &String) -> Result<Option<String>, redis::RedisError> {
     let mut redis_conn = get_redis_conn()?;
     let result: Option<String> = redis_conn.get(code)?;
     Ok(result)

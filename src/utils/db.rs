@@ -7,6 +7,8 @@ use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
 
+use super::redis::{get_cached_clip, cache_clip};
+
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
@@ -27,6 +29,17 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
 
     let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
     let result = conn.query_first(query);
+
+    match get_cached_clip(&code) {
+        Ok(url) => {
+            if let Some(url) = url {
+                return Ok(Some(url));
+            }
+        }
+        Err(e) => {
+            println!("Redis Error: {}", e);
+        }
+    }
 
     let result = match result {
         Ok(result) => result,
@@ -86,6 +99,13 @@ pub fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
         code, url, expiry_date
     );
     let result = conn.query_drop(query);
+
+    match cache_clip(&code, &url) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("Redis Error: {}", e);
+        }
+    }
 
     match result {
         Ok(_) => Ok(()),
