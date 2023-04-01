@@ -22,6 +22,12 @@ pub fn cache_clip(code: &str, url: &str) -> Result<(), redis::RedisError> {
 
 pub fn get_cached_clip(code: &String) -> Result<Option<String>, redis::RedisError> {
     let mut redis_conn = get_redis_conn()?;
-    let result: Option<String> = redis_conn.get(code)?;
-    Ok(result)
+    let result = redis_conn.get(code);
+    match result {
+        Ok(url) => Ok(Some(url)),
+        Err(e) => {
+            error!("Error with Redis: {}", e);
+            Err(e)
+        }
+    }
 }
