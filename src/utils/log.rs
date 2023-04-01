@@ -1,8 +1,13 @@
+use std::env;
+
 extern crate fern;
 extern crate chrono;
 
-pub fn setup_logger() -> Result<(), fern::InitError> {
-    fern::Dispatch::new()
+pub fn setup_logger() -> Result<String, fern::InitError> {
+    let temp_dir = env::temp_dir();
+    let log_file = temp_dir.join("server.log");
+    let log_file_path = log_file.as_path();
+        fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
@@ -14,7 +19,7 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
         })
         .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
-        .chain(fern::log_file("output.log")?)
+        .chain(fern::log_file(log_file_path)?)
         .apply()?;
-    Ok(())
+    Ok(log_file_path.display().to_string())
 }

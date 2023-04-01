@@ -23,8 +23,8 @@ extern crate serde_json;
 
 #[macro_use]
 extern crate rocket;
-extern crate log;
 extern crate fern;
+extern crate log;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
@@ -200,7 +200,9 @@ fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse
 #[launch]
 fn rocket() -> _ {
     match setup_logger() {
-        Ok(_) => {}
+        Ok(path) => {
+            println!("Logger setup at {}", path);
+        }
         Err(e) => {
             println!("Error whilst setting up logger: {}", e);
         }
