@@ -4,7 +4,13 @@ static REDIS_URL: &str = "redis://localhost/";
 
 fn get_redis_conn() -> RedisResult<Connection> {
     let client = redis::Client::open(REDIS_URL)?;
-    client.get_connection()
+    match client.get_connection() {
+        Ok(conn) => Ok(conn),
+        Err(e) => {
+            println!("Error: {}", e);
+            Err(e)
+        }
+    }
 }
 
 pub fn cache_clip(code: &str, url: &str) -> Result<(), redis::RedisError> {
