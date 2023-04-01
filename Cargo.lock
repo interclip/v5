@@ -614,6 +614,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fern"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e69ab0d5aca163e388c3a49d284fed6c3d0810700e77c5ae2756a50ec1a4daaa"
+dependencies = [
+ "chrono",
+ "log",
+]
+
+[[package]]
 name = "figment"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1010,6 +1020,8 @@ version = "0.1.0"
 dependencies = [
  "async-lock",
  "chrono",
+ "fern",
+ "log",
  "mysql",
  "rand",
  "redis",

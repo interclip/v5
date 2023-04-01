@@ -3,11 +3,12 @@ use redis::{Commands, Connection, RedisResult};
 static REDIS_URL: &str = "redis://localhost/";
 
 fn get_redis_conn() -> RedisResult<Connection> {
+    trace!("Establishing Redis connection");
     let client = redis::Client::open(REDIS_URL)?;
     match client.get_connection() {
         Ok(conn) => Ok(conn),
         Err(e) => {
-            println!("Error: {}", e);
+            error!("Error with Redis: {}", e);
             Err(e)
         }
     }

@@ -22,7 +22,7 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
     let mut conn = match conn {
         Ok(conn) => conn,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             return Err(e);
         }
     };
@@ -37,14 +37,14 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
             }
         }
         Err(e) => {
-            println!("Redis Error: {}", e);
+            error!("Redis Error: {}", e);
         }
     }
 
     let result = match result {
         Ok(result) => result,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             return Err(e);
         }
     };
@@ -59,7 +59,7 @@ pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, mysql::Error> {
     let mut conn = match conn {
         Ok(conn) => conn,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             return Err(e);
         }
     };
@@ -70,7 +70,7 @@ pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, mysql::Error> {
     let result = match result {
         Ok(result) => result,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             return Err(e);
         }
     };
@@ -85,7 +85,7 @@ pub fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
     let mut conn = match conn {
         Ok(conn) => conn,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             return Err(e);
         }
     };
@@ -103,7 +103,7 @@ pub fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
     match cache_clip(&code, &url) {
         Ok(_) => {}
         Err(e) => {
-            println!("Redis Error: {}", e);
+            error!("Redis Error: {}", e);
         }
     }
 

@@ -3,3 +3,4 @@ pub(crate) mod id;
 pub mod structs;
 pub mod rate_limit;
 pub mod redis;
+pub mod log;

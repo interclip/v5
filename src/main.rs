@@ -3,6 +3,7 @@ mod utils;
 use rocket::http::Status;
 use rocket::response::status::Custom;
 use utils::id::gen_id;
+use utils::log::setup_logger;
 
 use std::result::Result;
 use std::result::Result::Ok;
@@ -22,6 +23,8 @@ extern crate serde_json;
 
 #[macro_use]
 extern crate rocket;
+extern crate log;
+extern crate fern;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
@@ -37,7 +40,7 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
             return Ok(Json(response));
         }
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
@@ -80,7 +83,7 @@ fn set_clip(
     let url = match url.parse::<url::Url>() {
         Ok(url) => url,
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "Invalid URL".to_string(),
@@ -107,7 +110,7 @@ fn set_clip(
             };
         }
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
@@ -127,7 +130,7 @@ fn set_clip(
             return Ok(Json(response));
         }
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
@@ -173,7 +176,7 @@ fn get_clip(
             };
         }
         Err(e) => {
-            println!("Error: {}", e);
+            error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
@@ -196,6 +199,12 @@ fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse
 
 #[launch]
 fn rocket() -> _ {
+    match setup_logger() {
+        Ok(_) => {}
+        Err(e) => {
+            println!("Error whilst setting up logger: {}", e);
+        }
+    };
     rocket::build()
         .mount(
             "/api",
