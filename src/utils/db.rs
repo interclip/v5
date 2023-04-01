@@ -27,12 +27,10 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
         }
     };
 
-    let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
-    let result = conn.query_first(query);
-
     match get_cached_clip(&code) {
         Ok(url) => {
             if let Some(url) = url {
+                info!("Using cached clip for {}", code);
                 return Ok(Some(url));
             }
         }
@@ -40,6 +38,9 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
             error!("Redis Error: {}", e);
         }
     }
+
+    let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
+    let result = conn.query_first(query);
 
     let result = match result {
         Ok(result) => result,
@@ -101,7 +102,9 @@ pub fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
     let result = conn.query_drop(query);
 
     match cache_clip(&code, &url) {
-        Ok(_) => {}
+        Ok(_) => {
+            info!("Cached clip for {}", code);
+        }
         Err(e) => {
             error!("Redis Error: {}", e);
         }
