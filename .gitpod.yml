@@ -20,6 +20,8 @@ tasks:
       gp ports await 3306 &&
       mysql -e "CREATE DATABASE iclip;";
       mysql < scripts/db.sql;
+  - name: Redis
+    command: redis-server
 
 vscode:
   extensions:
