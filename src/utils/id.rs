@@ -1,6 +1,6 @@
 use rand::Rng;
 
-/* Generated an alphanumeric ID, n letters long */
+/// Generate an alphanumeric ID, n letters long
 pub fn gen_id(length: usize) -> String {
     let mut code = String::new();
     let mut rng = rand::thread_rng();
