@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["full"] }
 async-lock = "2.4"
 log = "0.4"
 fern = "0.5"
-git2 = "0.13.22"
+git2 = "0.16.1"
 
 [dependencies.rocket]
 version = "0.5.0-rc.3"
