@@ -17,6 +17,8 @@ use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
 
+use git2::Repository;
+
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
@@ -213,6 +215,34 @@ fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse
     ));
 }
 
+#[derive(serde::Serialize)]
+struct Version {
+    commit: Option<String>,
+}
+
+#[get("/version")]
+fn version(_rate_limiter: RateLimiter) -> Json<Version> {
+    let repo = Repository::discover(".");
+    let commit = match repo {
+        Ok(r) => {
+            let head = r.head();
+            match head {
+                Ok(reference) => {
+                    let peeling = reference.peel_to_commit();
+                    match peeling {
+                        Ok(commit) => Some(format!("{}", commit.id())),
+                        Err(_) => None,
+                    }
+                }
+                Err(_) => None,
+            }
+        }
+        Err(_) => None,
+    };
+
+    Json(Version { commit })
+}
+
 #[launch]
 fn rocket() -> _ {
     match setup_logger() {
@@ -226,7 +256,14 @@ fn rocket() -> _ {
     rocket::build()
         .mount(
             "/api",
-            routes![status, get_clip, get_clip_empty, set_clip, set_clip_get],
+            routes![
+                status,
+                get_clip,
+                get_clip_empty,
+                set_clip,
+                set_clip_get,
+                version
+            ],
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(RateLimiter::new())
