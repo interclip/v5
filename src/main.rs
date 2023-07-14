@@ -66,6 +66,22 @@ struct FormData {
     url: String,
 }
 
+#[catch(429)]
+fn too_many_requests() -> Json<APIResponse> {
+    Json(APIResponse {
+        status: APIStatus::Error,
+        result: "Too many requests".to_string(),
+    })
+}
+
+#[catch(404)]
+fn not_found() -> Json<APIResponse> {
+    Json(APIResponse {
+        status: APIStatus::Error,
+        result: "Endpoint not found".to_string(),
+    })
+}
+
 #[post("/set", data = "<form_data>")]
 fn set_clip(
     form_data: Form<FormData>,
@@ -212,5 +228,6 @@ fn rocket() -> _ {
             "/api",
             routes![status, get_clip, get_clip_empty, set_clip, set_clip_get],
         )
+        .register("/", catchers![too_many_requests, not_found])
         .manage(RateLimiter::new())
 }
