@@ -3,7 +3,7 @@ use chrono::{Duration, Local};
 use mysql::prelude::*;
 use mysql::*;
 
-use std::{result::Result};
+use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
 
