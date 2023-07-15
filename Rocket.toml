@@ -1,15 +1,13 @@
 [debug]
 address = "127.0.0.1"
 port = 8000
-log = "normal"
+log_level = "normal"
 
 [release]
 address = "0.0.0.0"
 port = 80
-log = "critical"
+log_level = "critical"
 
 [global]
 limits = { forms = 32768 }
 keep_alive = 5
-read_timeout = 5
-write_timeout = 5
