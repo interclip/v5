@@ -1,0 +1,12 @@
+[Unit]
+Description=Interclip server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/server
+ExecStart=/root/server/target/release/interclip-server
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
