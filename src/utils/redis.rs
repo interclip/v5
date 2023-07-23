@@ -1,10 +1,22 @@
 use redis::{Commands, Connection, RedisResult};
+extern crate dotenv;
+use dotenv::dotenv;
+use std::env;
 
-static REDIS_URL: &str = "redis://localhost/";
+/// Load environment variables and create the Redis connection string
+fn load_redis_url() -> String {
+    dotenv().ok();
+
+    let server = env::var("REDIS_HOST").unwrap_or("localhost".to_string());
+    let username = env::var("REDIS_USERNAME").unwrap_or("".to_string());
+    let password = env::var("REDIS_PASSWORD").unwrap_or("".to_string());
+
+    format!("redis://{}:{}@{}/", username, password, server)
+}
 
 fn get_redis_conn() -> RedisResult<Connection> {
     trace!("Establishing Redis connection");
-    let client = redis::Client::open(REDIS_URL)?;
+    let client = redis::Client::open(load_redis_url())?;
     match client.get_connection() {
         Ok(conn) => Ok(conn),
         Err(e) => {
