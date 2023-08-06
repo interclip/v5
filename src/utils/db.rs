@@ -1,5 +1,5 @@
-use chrono::{Local, Duration};
-use rusqlite::{params, Connection, Result, Error};
+use chrono::{Duration, Local};
+use rusqlite::{params, Connection, Error, Result};
 
 use std::{env, fmt};
 
@@ -26,13 +26,13 @@ impl fmt::Display for DatabaseError {
 }
 
 /// Load the path to the database file
-fn load_db_url() -> String {
+fn load_url() -> String {
     env::var("DB_PATH").unwrap_or("db.sqlite".to_string())
 }
 
 /// Tries to connect to the database and if it doesn't exist, it creates it from the current schema
 pub fn initialize() -> Result<()> {
-    let conn = Connection::open(load_db_url())?;
+    let conn = Connection::open(load_url())?;
 
     let schema = "
         CREATE TABLE IF NOT EXISTS clips (
@@ -49,9 +49,9 @@ pub fn initialize() -> Result<()> {
     Ok(())
 }
 
-pub fn get_db_clip(code: String) -> Result<Option<String>, DatabaseError> {
-    let db_url = load_db_url();
-    
+pub fn get_clip(code: String) -> Result<Option<String>, DatabaseError> {
+    let db_url = load_url();
+
     let conn = Connection::open(db_url)?;
 
     match get_cached_clip(&code) {
@@ -70,34 +70,26 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, DatabaseError> {
 
     match conn.query_row(query, params![code], |row| row.get(0)) {
         Ok(username) => Ok(Some(username)),
-        Err(Error::QueryReturnedNoRows) => {
-            Ok(None)
-        },
-        Err(e) => {
-            Err(DatabaseError::CustomError(format!("Database error: {}", e)))
-        },
+        Err(Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(DatabaseError::CustomError(format!("Database error: {}", e))),
     }
 }
 
-pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, DatabaseError> {
-    let db_url = load_db_url();
+pub fn get_clip_by_url(url: String) -> Result<Option<String>, DatabaseError> {
+    let db_url = load_url();
 
     let conn = Connection::open(db_url)?;
     let query = "SELECT code FROM clips WHERE url = ?1";
 
-    match conn.query_row(query, params![url], |row| row.get(0)){
+    match conn.query_row(query, params![url], |row| row.get(0)) {
         Ok(username) => Ok(Some(username)),
-        Err(Error::QueryReturnedNoRows) => {
-            Ok(None)
-        },
-        Err(e) => {
-            Err(DatabaseError::CustomError(format!("Database error: {}", e)))
-        },
+        Err(Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(DatabaseError::CustomError(format!("Database error: {}", e))),
     }
 }
 
-pub fn insert_db_clip(code: String, url: String) -> Result<(), rusqlite::Error> {
-    let db_url = load_db_url();
+pub fn insert_clip(code: String, url: String) -> Result<(), rusqlite::Error> {
+    let db_url = load_url();
 
     let conn = Connection::open(db_url)?;
 

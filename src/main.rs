@@ -12,7 +12,7 @@ use std::string::String;
 use rocket::form::Form;
 use rocket::serde::json::Json;
 
-use utils::db::{self, get_db_clip, get_db_clip_by_url, insert_db_clip};
+use utils::db;
 
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
@@ -30,7 +30,7 @@ extern crate log;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    let result = get_db_clip("test".to_string());
+    let result = db::get_clip("test".to_string());
 
     match result {
         Ok(_) => {
@@ -111,7 +111,7 @@ fn set_clip(
     };
 
     // Check for existence of the URL in the database
-    let existing_clip = get_db_clip_by_url(url.to_string());
+    let existing_clip = db::get_clip_by_url(url.to_string());
 
     match existing_clip {
         Ok(existing_clip) => {
@@ -134,7 +134,7 @@ fn set_clip(
     };
 
     let code = gen_id(5);
-    let result = insert_db_clip(code.clone(), url.to_string());
+    let result = db::insert_clip(code.clone(), url.to_string());
     match result {
         Ok(_) => {
             let response = APIResponse {
@@ -167,7 +167,7 @@ fn get_clip(
         return Err(Custom(Status::BadRequest, Json(response)));
     }
 
-    let result = get_db_clip(code);
+    let result = db::get_clip(code);
     match result {
         Ok(result) => match result {
             Some(result) => {
