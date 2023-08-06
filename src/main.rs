@@ -12,7 +12,7 @@ use std::string::String;
 use rocket::form::Form;
 use rocket::serde::json::Json;
 
-use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip, self};
+use utils::db::{self, get_db_clip, get_db_clip_by_url, insert_db_clip};
 
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
@@ -39,7 +39,7 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
                 result: "OK".to_string(),
             };
 
-            return Ok(Json(response));
+            Ok(Json(response))
         }
         Err(e) => {
             error!("{}", e);
@@ -47,20 +47,20 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Err(Custom(Status::InternalServerError, Json(response)));
+            Err(Custom(Status::InternalServerError, Json(response)))
         }
-    };
+    }
 }
 
 #[get("/set")]
 fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    return Err(Custom(
+    Err(Custom(
         Status::MethodNotAllowed,
         Json(APIResponse {
             status: APIStatus::Error,
             result: "For creating clips, only POST is allowed".to_string(),
         }),
-    ));
+    ))
 }
 
 #[derive(FromForm)]
@@ -115,17 +115,13 @@ fn set_clip(
 
     match existing_clip {
         Ok(existing_clip) => {
-            match existing_clip {
-                Some(existing_clip) => {
-                    let response = APIResponse {
-                        status: APIStatus::Success,
-                        result: existing_clip,
-                    };
-
-                    return Ok(Json(response));
-                }
-                None => {}
-            };
+            if let Some(existing_clip) = existing_clip {
+                let response = APIResponse {
+                    status: APIStatus::Success,
+                    result: existing_clip,
+                };
+                return Ok(Json(response));
+            }
         }
         Err(e) => {
             error!("{}", e);
@@ -145,7 +141,7 @@ fn set_clip(
                 status: APIStatus::Success,
                 result: code,
             };
-            return Ok(Json(response));
+            Ok(Json(response))
         }
         Err(e) => {
             error!("{}", e);
@@ -153,7 +149,7 @@ fn set_clip(
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Err(Custom(Status::InternalServerError, Json(response)));
+            Err(Custom(Status::InternalServerError, Json(response)))
         }
     }
 }
@@ -173,46 +169,44 @@ fn get_clip(
 
     let result = get_db_clip(code);
     match result {
-        Ok(result) => {
-            match result {
-                Some(result) => {
-                    let response = APIResponse {
-                        status: APIStatus::Success,
-                        result,
-                    };
+        Ok(result) => match result {
+            Some(result) => {
+                let response = APIResponse {
+                    status: APIStatus::Success,
+                    result,
+                };
 
-                    return Ok(Custom(Status::Created, Json(response)));
-                }
-                None => {
-                    let response = APIResponse {
-                        status: APIStatus::Error,
-                        result: "Clip not found".to_string(),
-                    };
+                Ok(Custom(Status::Created, Json(response)))
+            }
+            None => {
+                let response = APIResponse {
+                    status: APIStatus::Error,
+                    result: "Clip not found".to_string(),
+                };
 
-                    return Err(Custom(Status::NotFound, Json(response)));
-                }
-            };
-        }
+                Err(Custom(Status::NotFound, Json(response)))
+            }
+        },
         Err(e) => {
             error!("{}", e);
             let response = APIResponse {
                 status: APIStatus::Error,
                 result: "A problem with the database has occurred".to_string(),
             };
-            return Err(Custom(Status::InternalServerError, Json(response)));
+            Err(Custom(Status::InternalServerError, Json(response)))
         }
     }
 }
 
 #[get("/get")]
 fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
-    return Err(Custom(
+    Err(Custom(
         Status::BadRequest,
         Json(APIResponse {
             status: APIStatus::Error,
             result: "No clip code provided in the request.".to_string(),
         }),
-    ));
+    ))
 }
 
 #[derive(serde::Serialize)]

@@ -52,7 +52,7 @@ pub fn initialize() -> Result<()> {
 pub fn get_db_clip(code: String) -> Result<Option<String>, DatabaseError> {
     let db_url = load_db_url();
     
-    let conn = Connection::open(&db_url)?;
+    let conn = Connection::open(db_url)?;
 
     match get_cached_clip(&code) {
         Ok(url) => {
@@ -82,7 +82,7 @@ pub fn get_db_clip(code: String) -> Result<Option<String>, DatabaseError> {
 pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, DatabaseError> {
     let db_url = load_db_url();
 
-    let conn = Connection::open(&db_url)?;
+    let conn = Connection::open(db_url)?;
     let query = "SELECT code FROM clips WHERE url = ?1";
 
     match conn.query_row(query, params![url], |row| row.get(0)){
@@ -99,7 +99,7 @@ pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, DatabaseError> 
 pub fn insert_db_clip(code: String, url: String) -> Result<(), rusqlite::Error> {
     let db_url = load_db_url();
 
-    let conn = Connection::open(&db_url)?;
+    let conn = Connection::open(db_url)?;
 
     let start_date = Local::now().naive_local();
     let expires = start_date + Duration::days(30);

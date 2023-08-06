@@ -28,7 +28,7 @@ fn get_redis_conn() -> RedisResult<Connection> {
 
 pub fn cache_clip(code: &str, url: &str) -> Result<(), redis::RedisError> {
     let mut redis_conn = get_redis_conn()?;
-    let _: () = redis_conn.set_ex(code, url, 2592000)?; // Cache for 30 days (2592000 seconds)
+    redis_conn.set_ex(code, url, 2592000)?; // Cache for 30 days (2592000 seconds)
     Ok(())
 }
 
