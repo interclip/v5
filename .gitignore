@@ -2,3 +2,5 @@
 .env
 .DS_Store
 dump.rdb
+
+db.sqlite

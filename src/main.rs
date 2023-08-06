@@ -12,7 +12,7 @@ use std::string::String;
 use rocket::form::Form;
 use rocket::serde::json::Json;
 
-use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip};
+use utils::db::{get_db_clip, get_db_clip_by_url, insert_db_clip, self};
 
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
@@ -186,7 +186,7 @@ fn get_clip(
                 None => {
                     let response = APIResponse {
                         status: APIStatus::Error,
-                        result: "clip not found".to_string(),
+                        result: "Clip not found".to_string(),
                     };
 
                     return Err(Custom(Status::NotFound, Json(response)));
@@ -253,6 +253,14 @@ fn rocket() -> _ {
             println!("Error whilst setting up logger: {}", e);
         }
     };
+    match db::initialize() {
+        Ok(_) => {
+            println!("DB set up successfully")
+        }
+        Err(e) => {
+            panic!("Error whilst setting up database: {}", e)
+        }
+    }
     rocket::build()
         .mount(
             "/api",

@@ -1,163 +1,121 @@
-use chrono::{Duration, Local};
+use chrono::{Local, Duration};
+use rusqlite::{params, Connection, Result, Error};
 
-use mysql::prelude::*;
-use mysql::*;
-
-use std::result::Result;
-use std::result::Result::Ok;
-use std::string::String;
+use std::{env, fmt};
 
 use super::redis::{cache_clip, get_cached_clip};
 
-extern crate rand;
-extern crate serde;
-extern crate serde_json;
-extern crate dotenv;
-use dotenv::dotenv;
-use std::env;
-use mysql::Pool;
-
-// A custom structure to hold our DB_URL
-pub struct DatabaseUrl {
-    pub server: String,
-    pub db_name: String,
-    pub username: String,
-    pub password: String,
+pub enum DatabaseError {
+    SqliteError(rusqlite::Error),
+    CustomError(String),
 }
 
-/// Load environment variables and create the DB_URL
-fn load_db_url() -> DatabaseUrl {
-    dotenv().ok();
-
-    let server = env::var("DB_SERVER").expect("DB_SERVER must be set");
-    let db_name = env::var("DB_NAME").expect("DB_NAME must be set");
-    let username = env::var("USERNAME").expect("USERNAME must be set");
-    let password = env::var("PASSWORD").expect("PASSWORD must be set");
-
-    DatabaseUrl { server, db_name, username, password }
+impl From<rusqlite::Error> for DatabaseError {
+    fn from(err: rusqlite::Error) -> DatabaseError {
+        DatabaseError::SqliteError(err)
+    }
 }
 
-pub fn get_db_clip(code: String) -> Result<Option<String>, mysql::Error> {
-  let db_url = load_db_url();
-
-  let opts = OptsBuilder::new()
-      .ip_or_hostname(Some(db_url.server))
-      .db_name(Some(db_url.db_name))
-      .user(Some(db_url.username))
-      .pass(Some(db_url.password));
-
-  let pool = Pool::new(opts)?;
-  let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
-        Err(e) => {
-            error!("{}", e);
-            return Err(e);
+impl fmt::Display for DatabaseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DatabaseError::SqliteError(err) => write!(f, "SQLite error: {}", err),
+            DatabaseError::CustomError(err) => write!(f, "Database error: {}", err),
         }
-    };
+    }
+}
+
+/// Load the path to the database file
+fn load_db_url() -> String {
+    env::var("DB_PATH").unwrap_or("db.sqlite".to_string())
+}
+
+/// Tries to connect to the database and if it doesn't exist, it creates it from the current schema
+pub fn initialize() -> Result<()> {
+    let conn = Connection::open(load_db_url())?;
+
+    let schema = "
+        CREATE TABLE IF NOT EXISTS clips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL,
+            url TEXT NOT NULL,
+            date DATETIME NOT NULL,
+            expires DATE NOT NULL
+        );
+    ";
+
+    conn.execute(schema, [])?;
+
+    Ok(())
+}
+
+pub fn get_db_clip(code: String) -> Result<Option<String>, DatabaseError> {
+    let db_url = load_db_url();
+    
+    let conn = Connection::open(&db_url)?;
 
     match get_cached_clip(&code) {
         Ok(url) => {
             if let Some(url) = url {
-                info!("Using cached clip for {}", code);
+                log::info!("Using cached clip for {}", code);
                 return Ok(Some(url));
             }
         }
         Err(e) => {
-            error!("Redis Error: {}", e);
+            log::error!("Redis Error: {}", e);
         }
     }
 
-    let query = format!("SELECT url FROM userurl WHERE usr = '{}'", code);
-    let result = conn.query_first(query);
+    let query = "SELECT url FROM clips WHERE code = ?1";
 
-    let result = match result {
-        Ok(result) => result,
+    match conn.query_row(query, params![code], |row| row.get(0)) {
+        Ok(username) => Ok(Some(username)),
+        Err(Error::QueryReturnedNoRows) => {
+            Ok(None)
+        },
         Err(e) => {
-            error!("{}", e);
-            return Err(e);
-        }
-    };
-
-    Ok(result)
+            Err(DatabaseError::CustomError(format!("Database error: {}", e)))
+        },
+    }
 }
 
-pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, mysql::Error> {
-  let db_url = load_db_url();
+pub fn get_db_clip_by_url(url: String) -> Result<Option<String>, DatabaseError> {
+    let db_url = load_db_url();
 
-  let opts = OptsBuilder::new()
-      .ip_or_hostname(Some(db_url.server))
-      .db_name(Some(db_url.db_name))
-      .user(Some(db_url.username))
-      .pass(Some(db_url.password));
+    let conn = Connection::open(&db_url)?;
+    let query = "SELECT code FROM clips WHERE url = ?1";
 
-  let pool = Pool::new(opts)?;
-  let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
+    match conn.query_row(query, params![url], |row| row.get(0)){
+        Ok(username) => Ok(Some(username)),
+        Err(Error::QueryReturnedNoRows) => {
+            Ok(None)
+        },
         Err(e) => {
-            error!("{}", e);
-            return Err(e);
-        }
-    };
-
-    let query = format!("SELECT usr FROM userurl WHERE url = '{}'", url);
-    let result = conn.query_first(query);
-
-    let result = match result {
-        Ok(result) => result,
-        Err(e) => {
-            error!("{}", e);
-            return Err(e);
-        }
-    };
-
-    Ok(result)
+            Err(DatabaseError::CustomError(format!("Database error: {}", e)))
+        },
+    }
 }
 
-pub fn insert_db_clip(code: String, url: String) -> Result<(), mysql::Error> {
-  let db_url = load_db_url();
+pub fn insert_db_clip(code: String, url: String) -> Result<(), rusqlite::Error> {
+    let db_url = load_db_url();
 
-  let opts = OptsBuilder::new()
-      .ip_or_hostname(Some(db_url.server))
-      .db_name(Some(db_url.db_name))
-      .user(Some(db_url.username))
-      .pass(Some(db_url.password));
-
-  let pool = Pool::new(opts)?;
-  let conn = pool.get_conn();
-
-    let mut conn = match conn {
-        Ok(conn) => conn,
-        Err(e) => {
-            error!("{}", e);
-            return Err(e);
-        }
-    };
+    let conn = Connection::open(&db_url)?;
 
     let start_date = Local::now().naive_local();
     let expires = start_date + Duration::days(30);
     let expiry_date = expires.format("%Y-%m-%d").to_string();
 
-    let query = format!(
-        "INSERT INTO userurl (usr, url, date, expires) VALUES ('{}', '{}', NOW(), '{}')",
-        code, url, expiry_date
-    );
-    let result = conn.query_drop(query);
+    let query = "INSERT INTO clips (code, url, date, expires) VALUES (?1, ?2, datetime('now'), ?3)";
+    conn.execute(query, params![code, url, expiry_date])?;
 
     match cache_clip(&code, &url) {
         Ok(_) => {
-            info!("Cached clip for {}", code);
+            log::info!("Cached clip for {}", code);
         }
         Err(e) => {
-            error!("Redis Error: {}", e);
+            log::error!("Redis Error: {}", e);
         }
     }
 
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
+    Ok(())
 }

@@ -1,6 +1,6 @@
 ports:
   - port: 8000
-    onOpen: open-browser
+    onOpen: ignore
     visibility: public
     name: Server
   - port: 3306
