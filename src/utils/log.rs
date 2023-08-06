@@ -1,13 +1,13 @@
 use std::env;
 
-extern crate fern;
 extern crate chrono;
+extern crate fern;
 
 pub fn setup_logger() -> Result<String, fern::InitError> {
     let temp_dir = env::temp_dir();
     let log_file = temp_dir.join("server.log");
     let log_file_path = log_file.as_path();
-        fern::Dispatch::new()
+    fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",

@@ -1,6 +1,6 @@
 use rocket::request::{self, FromRequest, Outcome};
 
-use std::sync::atomic::{Ordering, AtomicU32};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 extern crate serde;
 extern crate serde_json;
@@ -17,7 +17,7 @@ pub struct RateLimiter {
 }
 
 impl RateLimiter {
-    /// Create a new RateLimiter 
+    /// Create a new RateLimiter
     pub fn new() -> Self {
         RateLimiter {
             requests: Arc::new(AtomicU32::new(0)),
@@ -54,10 +54,7 @@ impl<'r> FromRequest<'r> for RateLimiter {
             .state::<RateLimiter>()
             .expect("RateLimiter registered as state");
 
-        if rate_limiter
-            .should_limit(Duration::from_secs(10), 15)
-            .await
-        {
+        if rate_limiter.should_limit(Duration::from_secs(10), 15).await {
             Outcome::Failure((rocket::http::Status::TooManyRequests, ()))
         } else {
             Outcome::Success(rate_limiter.clone())
