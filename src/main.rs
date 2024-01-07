@@ -89,11 +89,6 @@ fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     ))
 }
 
-#[derive(FromForm)]
-struct FormData {
-    url: String,
-}
-
 #[catch(429)]
 fn too_many_requests() -> Json<APIResponse> {
     Json(APIResponse {
@@ -110,9 +105,14 @@ fn not_found() -> Json<APIResponse> {
     })
 }
 
+#[derive(FromForm)]
+struct SetClipRequest {
+    url: String,
+}
+
 #[post("/set", data = "<form_data>")]
 fn set_clip(
-    form_data: Form<FormData>,
+    form_data: Form<SetClipRequest>,
     _rate_limiter: RateLimiter,
 ) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let url = &form_data.url;

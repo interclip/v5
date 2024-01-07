@@ -20,5 +20,5 @@ dotenv = "0.15.0"
 diesel = { version = "2.1.4", features = ["postgres", "chrono"] }
 
 [dependencies.rocket]
-version = "0.5.0-rc.3"
+version = "0.5.0"
 features = ["json"]

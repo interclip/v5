@@ -55,7 +55,7 @@ impl<'r> FromRequest<'r> for RateLimiter {
             .expect("RateLimiter registered as state");
 
         if rate_limiter.should_limit(Duration::from_secs(10), 15).await {
-            Outcome::Failure((rocket::http::Status::TooManyRequests, ()))
+            Outcome::Error((rocket::http::Status::TooManyRequests, ()))
         } else {
             Outcome::Success(rate_limiter.clone())
         }
