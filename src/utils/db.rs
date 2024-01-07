@@ -9,14 +9,11 @@ use std::env;
 
 /// Tries to connect to the database and if it doesn't exist, creates it from the current schema
 /// Returns the connection
-pub fn initialize() -> PgConnection {
+pub fn initialize() -> Result<PgConnection, ConnectionError> {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let connection = PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url));
-
-    return connection;
+    PgConnection::establish(&database_url)
 }
 
 /// Returns a clip from the database

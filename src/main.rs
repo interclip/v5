@@ -32,7 +32,17 @@ extern crate log;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        },
+    };
 
     let code = "test".to_string();
     let url = "https://github.com".to_string();
@@ -126,7 +136,17 @@ fn set_clip(
         }
     };
 
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        },
+    };
 
     // Check for existence of the URL in the database
     let existing_clip = db::get_clip_by_url(&mut db_connection, url.to_string());
@@ -182,7 +202,17 @@ fn get_clip(
         return Err(Custom(Status::BadRequest, Json(response)));
     }
 
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        },
+    };
 
     let result = db::get_clip(&mut db_connection, code);
     match result {
