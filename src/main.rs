@@ -2,6 +2,7 @@ mod models;
 mod schema;
 mod utils;
 
+use regex::Regex;
 use rocket::http::Status;
 use rocket::response::status::Custom;
 use utils::id::gen_id;
@@ -138,6 +139,14 @@ fn set_clip(
         }
     };
 
+    if url.scheme() != "http" && url.scheme() != "https" {
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "Invalid URL scheme".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)));
+    }
+
     let mut db_connection = match db::initialize() {
         Ok(conn) => conn,
         Err(err) => {
@@ -200,6 +209,15 @@ fn get_clip(
         let response = APIResponse {
             status: APIStatus::Error,
             result: "No code provided".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)));
+    }
+
+    let code_pattern = Regex::new(r"^(?i)[A-Z0-9]{5}$").unwrap();
+    if !code_pattern.is_match(code.as_str()) {
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "Invalid clip code format".to_string(),
         };
         return Err(Custom(Status::BadRequest, Json(response)));
     }
