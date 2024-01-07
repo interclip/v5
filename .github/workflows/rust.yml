@@ -22,20 +22,3 @@ jobs:
           override: true
       - name: Build
         run: cargo build --verbose
-      - name: Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-          version: "1.46.1"
-      - name: Deploy
-        if: false
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            cd interclip &&
-            git pull &&
-            cargo build --release &&
-            sudo systemctl restart interclip
-          "
-
