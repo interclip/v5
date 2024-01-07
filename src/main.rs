@@ -131,7 +131,6 @@ fn set_clip(
     // Check for existence of the URL in the database
     let existing_clip = db::get_clip_by_url(&mut db_connection, url.to_string());
 
-
     if let Ok(Some(existing_clip)) = existing_clip {
         let response = APIResponse {
             status: APIStatus::Success,
