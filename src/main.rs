@@ -1,4 +1,6 @@
 mod utils;
+mod schema;
+mod models;
 
 use rocket::http::Status;
 use rocket::response::status::Custom;
