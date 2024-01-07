@@ -14,14 +14,9 @@ image:
   file: .gitpod.Dockerfile
 tasks:
   - init: cargo build
-    command: cargo watch -x run
-  - command: |
+    command: |
       bash scripts/gitpod.sh;
-      gp ports await 3306 &&
-      mysql -e "CREATE DATABASE iclip;";
-      mysql < scripts/db.sql;
-  - name: Redis
-    command: redis-server
+      cargo watch -x run
 
 vscode:
   extensions:
