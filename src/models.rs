@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::schema::*;
 
 #[derive(Insertable)]
-#[table_name = "clips"]
+#[diesel(table_name = clips)]
 pub struct NewClip {
     pub url: String,
     pub code: String,
