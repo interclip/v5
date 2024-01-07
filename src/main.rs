@@ -1,3 +1,5 @@
+mod models;
+mod schema;
 mod utils;
 
 use rocket::http::Status;
@@ -30,7 +32,21 @@ extern crate log;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    let result = db::get_clip("test".to_string());
+    let mut db_connection = db::initialize();
+
+    let code = "test".to_string();
+    let url = "https://github.com".to_string();
+
+    if let Err(e) = db::insert_clip(&mut db_connection, url, code.clone()) {
+        error!("{}", e);
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "A problem with the database has occurred".to_string(),
+        };
+        return Err(Custom(Status::InternalServerError, Json(response)));
+    }
+
+    let result = db::get_clip(&mut db_connection, code);
 
     match result {
         Ok(_) => {
@@ -110,31 +126,31 @@ fn set_clip(
         }
     };
 
-    // Check for existence of the URL in the database
-    let existing_clip = db::get_clip_by_url(url.to_string());
+    let mut db_connection = db::initialize();
 
-    match existing_clip {
-        Ok(existing_clip) => {
-            if let Some(existing_clip) = existing_clip {
-                let response = APIResponse {
-                    status: APIStatus::Success,
-                    result: existing_clip,
-                };
-                return Ok(Json(response));
-            }
-        }
-        Err(e) => {
-            error!("{}", e);
-            let response = APIResponse {
-                status: APIStatus::Error,
-                result: "A problem with the database has occurred".to_string(),
-            };
-            return Err(Custom(Status::InternalServerError, Json(response)));
-        }
-    };
+    // Check for existence of the URL in the database
+    let existing_clip = db::get_clip_by_url(&mut db_connection, url.to_string());
+
+
+    if let Ok(Some(existing_clip)) = existing_clip {
+        let response = APIResponse {
+            status: APIStatus::Success,
+            result: existing_clip.code,
+        };
+        return Ok(Json(response));
+    }
+
+    if let Err(e) = existing_clip {
+        error!("{}", e);
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "A problem with the database has occurred".to_string(),
+        };
+        return Err(Custom(Status::InternalServerError, Json(response)));
+    }
 
     let code = gen_id(5);
-    let result = db::insert_clip(code.clone(), url.to_string());
+    let result = db::insert_clip(&mut db_connection, url.to_string(), code.clone());
     match result {
         Ok(_) => {
             let response = APIResponse {
@@ -167,26 +183,24 @@ fn get_clip(
         return Err(Custom(Status::BadRequest, Json(response)));
     }
 
-    let result = db::get_clip(code);
+    let mut db_connection = db::initialize();
+
+    let result = db::get_clip(&mut db_connection, code);
     match result {
-        Ok(result) => match result {
-            Some(result) => {
-                let response = APIResponse {
-                    status: APIStatus::Success,
-                    result,
-                };
-
-                Ok(Custom(Status::Created, Json(response)))
-            }
-            None => {
-                let response = APIResponse {
-                    status: APIStatus::Error,
-                    result: "Clip not found".to_string(),
-                };
-
-                Err(Custom(Status::NotFound, Json(response)))
-            }
-        },
+        Ok(Some(clip)) => {
+            let response = APIResponse {
+                status: APIStatus::Success,
+                result: clip.url,
+            };
+            Ok(Custom(Status::Created, Json(response)))
+        }
+        Ok(None) => {
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "Clip not found".to_string(),
+            };
+            Err(Custom(Status::NotFound, Json(response)))
+        }
         Err(e) => {
             error!("{}", e);
             let response = APIResponse {
@@ -247,14 +261,6 @@ fn rocket() -> _ {
             println!("Error whilst setting up logger: {}", e);
         }
     };
-    match db::initialize() {
-        Ok(_) => {
-            println!("DB set up successfully")
-        }
-        Err(e) => {
-            panic!("Error whilst setting up database: {}", e)
-        }
-    }
     rocket::build()
         .mount(
             "/api",
