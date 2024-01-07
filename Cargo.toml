@@ -18,6 +18,7 @@ fern = "0.5"
 git2 = "0.16.1"
 dotenv = "0.15.0"
 diesel = { version = "2.1.4", features = ["postgres", "chrono"] }
+regex = "1.10"
 
 [dependencies.rocket]
 version = "0.5.0"
