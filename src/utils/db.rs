@@ -7,19 +7,16 @@ use diesel::prelude::*;
 use dotenv::dotenv;
 use std::env;
 
-/// Tries to connect to the database and if it doesn't exist, it creates it from the current schema
+/// Tries to connect to the database and if it doesn't exist, creates it from the current schema
 /// Returns the connection
-pub fn initialize() -> PgConnection {
+pub fn initialize() -> Result<PgConnection, ConnectionError> {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let connection = PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url));
-
-    return connection;
+    PgConnection::establish(&database_url)
 }
 
-/// Gets a clip from the database
+/// Returns a clip from the database
 pub fn get_clip(
     connection: &mut PgConnection,
     clip_code: String,
@@ -30,6 +27,7 @@ pub fn get_clip(
 
     clips
         .filter(code.eq(clip_code))
+        .filter(expires_at.is_null().or(expires_at.gt(chrono::Local::now().naive_local())))
         .first::<Clip>(connection)
         .optional()
 }
@@ -42,6 +40,11 @@ pub fn get_clip_by_url(
 ) -> Result<Option<Clip>, diesel::result::Error> {
     clips::table
         .filter(clips::url.eq(url))
+        .filter(
+            clips::expires_at
+                .is_null()
+                .or(clips::expires_at.gt(chrono::Local::now().naive_local())),
+        )
         .first::<Clip>(connection)
         .optional()
 }
@@ -53,10 +56,11 @@ pub fn insert_clip(
     url: String,
     code: String,
 ) -> Result<Clip, diesel::result::Error> {
+    let expiry_date = chrono::Local::now().naive_local() + chrono::Duration::days(7);
     let new_clip = NewClip {
         url,
         code,
-        created_at: chrono::Local::now().naive_local(),
+        created_at: expiry_date,
         expires_at: None,
     };
 

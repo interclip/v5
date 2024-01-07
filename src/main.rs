@@ -6,10 +6,12 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use utils::id::gen_id;
 use utils::log::setup_logger;
+use utils::rate_limit::RateLimitConfig;
 
 use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
+use std::time::Duration;
 
 use rocket::form::Form;
 use rocket::serde::json::Json;
@@ -32,7 +34,17 @@ extern crate log;
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
+    };
 
     let code = "test".to_string();
     let url = "https://github.com".to_string();
@@ -79,11 +91,6 @@ fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     ))
 }
 
-#[derive(FromForm)]
-struct FormData {
-    url: String,
-}
-
 #[catch(429)]
 fn too_many_requests() -> Json<APIResponse> {
     Json(APIResponse {
@@ -100,9 +107,14 @@ fn not_found() -> Json<APIResponse> {
     })
 }
 
+#[derive(FromForm)]
+struct SetClipRequest {
+    url: String,
+}
+
 #[post("/set", data = "<form_data>")]
 fn set_clip(
-    form_data: Form<FormData>,
+    form_data: Form<SetClipRequest>,
     _rate_limiter: RateLimiter,
 ) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     let url = &form_data.url;
@@ -126,11 +138,20 @@ fn set_clip(
         }
     };
 
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
+    };
 
     // Check for existence of the URL in the database
     let existing_clip = db::get_clip_by_url(&mut db_connection, url.to_string());
-
 
     if let Ok(Some(existing_clip)) = existing_clip {
         let response = APIResponse {
@@ -183,7 +204,17 @@ fn get_clip(
         return Err(Custom(Status::BadRequest, Json(response)));
     }
 
-    let mut db_connection = db::initialize();
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
+    };
 
     let result = db::get_clip(&mut db_connection, code);
     match result {
@@ -192,7 +223,7 @@ fn get_clip(
                 status: APIStatus::Success,
                 result: clip.url,
             };
-            Ok(Custom(Status::Created, Json(response)))
+            Ok(Custom(Status::Ok, Json(response)))
         }
         Ok(None) => {
             let response = APIResponse {
@@ -252,7 +283,7 @@ fn version(_rate_limiter: RateLimiter) -> Json<Version> {
 }
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     match setup_logger() {
         Ok(path) => {
             println!("Logger setup at {}", path);
@@ -261,6 +292,27 @@ fn rocket() -> _ {
             println!("Error whilst setting up logger: {}", e);
         }
     };
+
+    let rate_limiter = RateLimiter::new();
+    rate_limiter
+        .add_config(
+            "/api/get",
+            RateLimitConfig::new(Duration::from_secs(30), 100),
+        )
+        .await;
+    rate_limiter
+        .add_config(
+            "/api/set",
+            RateLimitConfig::new(Duration::from_secs(60), 20),
+        )
+        .await;
+    rate_limiter
+        .add_config(
+            "/api/status",
+            RateLimitConfig::new(Duration::from_secs(30), 20),
+        )
+        .await;
+
     rocket::build()
         .mount(
             "/api",
@@ -274,5 +326,5 @@ fn rocket() -> _ {
             ],
         )
         .register("/", catchers![too_many_requests, not_found])
-        .manage(RateLimiter::new())
+        .manage(rate_limiter)
 }
