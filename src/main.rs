@@ -6,10 +6,12 @@ use rocket::http::Status;
 use rocket::response::status::Custom;
 use utils::id::gen_id;
 use utils::log::setup_logger;
+use utils::rate_limit::RateLimitConfig;
 
 use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
+use std::time::Duration;
 
 use rocket::form::Form;
 use rocket::serde::json::Json;
@@ -41,7 +43,7 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
                 result: "A problem with the database has occurred".to_string(),
             };
             return Err(Custom(Status::InternalServerError, Json(response)));
-        },
+        }
     };
 
     let code = "test".to_string();
@@ -145,7 +147,7 @@ fn set_clip(
                 result: "A problem with the database has occurred".to_string(),
             };
             return Err(Custom(Status::InternalServerError, Json(response)));
-        },
+        }
     };
 
     // Check for existence of the URL in the database
@@ -211,7 +213,7 @@ fn get_clip(
                 result: "A problem with the database has occurred".to_string(),
             };
             return Err(Custom(Status::InternalServerError, Json(response)));
-        },
+        }
     };
 
     let result = db::get_clip(&mut db_connection, code);
@@ -221,7 +223,7 @@ fn get_clip(
                 status: APIStatus::Success,
                 result: clip.url,
             };
-            Ok(Custom(Status::Created, Json(response)))
+            Ok(Custom(Status::Ok, Json(response)))
         }
         Ok(None) => {
             let response = APIResponse {
@@ -281,7 +283,7 @@ fn version(_rate_limiter: RateLimiter) -> Json<Version> {
 }
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     match setup_logger() {
         Ok(path) => {
             println!("Logger setup at {}", path);
@@ -290,6 +292,27 @@ fn rocket() -> _ {
             println!("Error whilst setting up logger: {}", e);
         }
     };
+
+    let rate_limiter = RateLimiter::new();
+    rate_limiter
+        .add_config(
+            "/api/get",
+            RateLimitConfig::new(Duration::from_secs(30), 100),
+        )
+        .await;
+    rate_limiter
+        .add_config(
+            "/api/set",
+            RateLimitConfig::new(Duration::from_secs(60), 20),
+        )
+        .await;
+    rate_limiter
+        .add_config(
+            "/api/status",
+            RateLimitConfig::new(Duration::from_secs(30), 20),
+        )
+        .await;
+
     rocket::build()
         .mount(
             "/api",
@@ -303,5 +326,5 @@ fn rocket() -> _ {
             ],
         )
         .register("/", catchers![too_many_requests, not_found])
-        .manage(RateLimiter::new())
+        .manage(rate_limiter)
 }
