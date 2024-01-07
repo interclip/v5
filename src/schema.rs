@@ -2,10 +2,10 @@
 
 diesel::table! {
     clips (id) {
-        id -> Nullable<Integer>,
-        code -> Text,
+        id -> Int4,
         url -> Text,
-        date -> Timestamp,
-        expires -> Date,
+        code -> Text,
+        created_at -> Timestamp,
+        expires_at -> Nullable<Timestamp>,
     }
 }

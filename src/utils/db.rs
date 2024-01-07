@@ -1,29 +1,66 @@
 use crate::models::*;
 use crate::schema::*;
 
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
 
+use dotenv::dotenv;
 use std::env;
 
 /// Tries to connect to the database and if it doesn't exist, it creates it from the current schema
-pub fn initialize() {
+/// Returns the connection
+pub fn initialize() -> PgConnection {
+    dotenv().ok();
+
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let mut connection = SqliteConnection::establish(&database_url)
+    let connection = PgConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url));
 
-    create(&mut connection);
+    return connection;
 }
 
-fn create(connection: &mut SqliteConnection) {
-    let new_log = NewClip {
-        url: "https://github.com".to_string(),
-        code: "test".to_string(),
+/// Gets a clip from the database
+pub fn get_clip(
+    connection: &mut PgConnection,
+    clip_code: String,
+) -> Result<Option<Clip>, diesel::result::Error> {
+    use crate::schema::clips::dsl::*;
+
+    println!("Searching for clip code: {}", clip_code);
+
+    clips
+        .filter(code.eq(clip_code))
+        .first::<Clip>(connection)
+        .optional()
+}
+
+/// Looks for a clip in the database by its URL
+/// Returns the clip if it exists
+pub fn get_clip_by_url(
+    connection: &mut PgConnection,
+    url: String,
+) -> Result<Option<Clip>, diesel::result::Error> {
+    clips::table
+        .filter(clips::url.eq(url))
+        .first::<Clip>(connection)
+        .optional()
+}
+
+/// Inserts a clip into the database
+/// Returns the inserted clip
+pub fn insert_clip(
+    connection: &mut PgConnection,
+    url: String,
+    code: String,
+) -> Result<Clip, diesel::result::Error> {
+    let new_clip = NewClip {
+        url,
+        code,
+        created_at: chrono::Local::now().naive_local(),
+        expires_at: None,
     };
 
-    let inserted_row = diesel::insert_into(clips::table)
-        .values(&new_log)
-        .get_result::<Clip>(connection);
-
-    println!("{:?}", inserted_row);
+    diesel::insert_into(clips::table)
+        .values(&new_clip)
+        .get_result::<Clip>(connection)
 }
