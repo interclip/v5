@@ -27,7 +27,11 @@ pub fn get_clip(
 
     clips
         .filter(code.eq(clip_code))
-        .filter(expires_at.is_null().or(expires_at.gt(chrono::Local::now().naive_local())))
+        .filter(
+            expires_at
+                .is_null()
+                .or(expires_at.gt(chrono::Local::now().naive_local())),
+        )
         .first::<Clip>(connection)
         .optional()
 }
