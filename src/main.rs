@@ -75,7 +75,7 @@ async fn upload_file(
     let bucket = "iclip";
     let object_key = format!("{}/{}", gen_id(10), query.name);
 
-    match put_object(&s3_client, &bucket, &object_key, 60).await {
+    match put_object(s3_client, bucket, &object_key, 60).await {
         Ok(presigned_url) => {
             let response = APIResponse {
                 status: APIStatus::Success,
@@ -89,7 +89,7 @@ async fn upload_file(
                 status: APIStatus::Error,
                 result: "A server-side problem has occurred".to_string(),
             };
-            return Err(Custom(Status::InternalServerError, Json(response)));
+            Err(Custom(Status::InternalServerError, Json(response)))
         }
     }
 }
