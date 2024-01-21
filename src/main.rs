@@ -42,8 +42,6 @@ extern crate log;
 #[serde(crate = "rocket::serde")]
 struct UploadQuery {
     name: String,
-    #[serde(rename = "type")]
-    type_: String,
     size: Option<usize>,
 }
 
@@ -53,7 +51,7 @@ async fn upload_file(
     s3_client: &State<Client>,
     query: UploadQuery,
 ) -> Result<Json<String>, Status> {
-    if query.name.is_empty() || query.type_.is_empty() {
+    if query.name.is_empty() {
         return Err(Status::BadRequest);
     }
 
