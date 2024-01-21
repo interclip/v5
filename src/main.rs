@@ -5,10 +5,13 @@ mod utils;
 use regex::Regex;
 use rocket::http::Status;
 use rocket::response::status::Custom;
+use rocket::State;
+use utils::files::{put_object, create_storage_client};
 use utils::id::gen_id;
 use utils::log::setup_logger;
 use utils::rate_limit::RateLimitConfig;
 
+use std::env;
 use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
@@ -24,6 +27,9 @@ use crate::utils::structs::{APIResponse, APIStatus};
 
 use git2::Repository;
 
+use aws_sdk_s3::Client;
+use std::sync::Arc;
+
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
@@ -32,6 +38,44 @@ extern crate serde_json;
 extern crate rocket;
 extern crate fern;
 extern crate log;
+
+#[derive(rocket::FromForm, serde::Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct UploadQuery {
+    name: String,
+    #[serde(rename = "type")]
+    type_: String,
+    size: Option<usize>,
+}
+
+struct S3Client {
+    client: Client,
+}
+
+#[get("/upload-file?<query..>")]
+async fn upload_file(
+    query: UploadQuery,
+    s3_client: &State<Arc<S3Client>>,
+) -> Result<Json<String>, Status> {
+    if query.name.is_empty() || query.type_.is_empty() {
+        return Err(Status::BadRequest);
+    }
+
+    let max_size = 100 * 1024 * 1024; // 100MB
+    if let Some(size) = query.size {
+        if size > max_size {
+            return Err(Status::PayloadTooLarge);
+        }
+    }
+
+    let bucket = "iclip";
+    let object_key = format!("{}/{}", gen_id(10), query.name);
+
+    match put_object(&s3_client.client, &bucket, &object_key, 60).await {
+        Ok(presigned_url) => Ok(Json(presigned_url)),
+        Err(_) => Err(Status::InternalServerError),
+    }
+}
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
@@ -331,6 +375,8 @@ async fn rocket() -> _ {
         )
         .await;
 
+    let s3_client = create_storage_client().await.unwrap();
+
     rocket::build()
         .mount(
             "/api",
@@ -340,9 +386,11 @@ async fn rocket() -> _ {
                 get_clip_empty,
                 set_clip,
                 set_clip_get,
-                version
+                version,
+                upload_file
             ],
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(rate_limiter)
+        .manage(s3_client)
 }
