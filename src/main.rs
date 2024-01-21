@@ -52,15 +52,23 @@ async fn upload_file(
     _rate_limiter: RateLimiter,
     s3_client: &State<Client>,
     query: UploadQuery,
-) -> Result<Json<String>, Status> {
+) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
     if query.name.is_empty() {
-        return Err(Status::BadRequest);
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "File name is empty".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)))
     }
 
     let max_size = 100 * 1024 * 1024; // 100MB
     if let Some(size) = query.size {
         if size > max_size {
-            return Err(Status::PayloadTooLarge);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "File is too large".to_string(),
+            };
+            return Err(Custom(Status::PayloadTooLarge, Json(response)))
         }
     }
 
@@ -68,8 +76,21 @@ async fn upload_file(
     let object_key = format!("{}/{}", gen_id(10), query.name);
 
     match put_object(&s3_client, &bucket, &object_key, 60).await {
-        Ok(presigned_url) => Ok(Json(presigned_url)),
-        Err(_) => Err(Status::InternalServerError),
+        Ok(presigned_url) => {
+            let response = APIResponse {
+                status: APIStatus::Success,
+                result: presigned_url,
+            };
+            Ok(Json(response))
+        }
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A server-side problem has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
     }
 }
 
