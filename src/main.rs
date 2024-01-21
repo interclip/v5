@@ -3,10 +3,10 @@ mod schema;
 mod utils;
 
 use regex::Regex;
-use rocket::http::Status;
+use rocket::http::{Header, Status};
 use rocket::response::status::Custom;
 use rocket::State;
-use utils::files::{put_object, create_storage_client};
+use utils::files::{create_storage_client, put_object};
 use utils::id::gen_id;
 use utils::log::setup_logger;
 use utils::rate_limit::RateLimitConfig;
@@ -58,7 +58,7 @@ async fn upload_file(
             status: APIStatus::Error,
             result: "File name is empty".to_string(),
         };
-        return Err(Custom(Status::BadRequest, Json(response)))
+        return Err(Custom(Status::BadRequest, Json(response)));
     }
 
     let max_size = 100 * 1024 * 1024; // 100MB
@@ -68,7 +68,7 @@ async fn upload_file(
                 status: APIStatus::Error,
                 result: "File is too large".to_string(),
             };
-            return Err(Custom(Status::PayloadTooLarge, Json(response)))
+            return Err(Custom(Status::PayloadTooLarge, Json(response)));
         }
     }
 
@@ -411,5 +411,13 @@ async fn rocket() -> _ {
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(rate_limiter)
+        .attach(rocket::fairing::AdHoc::on_response(
+            "CORS headers",
+            |_, res| {
+                Box::pin(async move {
+                    res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+                })
+            },
+        ))
         .manage(s3_client)
 }
