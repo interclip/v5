@@ -28,7 +28,6 @@ use crate::utils::structs::{APIResponse, APIStatus};
 use git2::Repository;
 
 use aws_sdk_s3::Client;
-use std::sync::Arc;
 
 extern crate rand;
 extern crate serde;
@@ -48,14 +47,11 @@ struct UploadQuery {
     size: Option<usize>,
 }
 
-struct S3Client {
-    client: Client,
-}
-
 #[get("/upload-file?<query..>")]
 async fn upload_file(
+    _rate_limiter: RateLimiter,
+    s3_client: &State<Client>,
     query: UploadQuery,
-    s3_client: &State<Arc<S3Client>>,
 ) -> Result<Json<String>, Status> {
     if query.name.is_empty() || query.type_.is_empty() {
         return Err(Status::BadRequest);
@@ -71,7 +67,7 @@ async fn upload_file(
     let bucket = "iclip";
     let object_key = format!("{}/{}", gen_id(10), query.name);
 
-    match put_object(&s3_client.client, &bucket, &object_key, 60).await {
+    match put_object(&s3_client, &bucket, &object_key, 60).await {
         Ok(presigned_url) => Ok(Json(presigned_url)),
         Err(_) => Err(Status::InternalServerError),
     }
