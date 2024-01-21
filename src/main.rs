@@ -11,6 +11,8 @@ use utils::id::gen_id;
 use utils::log::setup_logger;
 use utils::rate_limit::RateLimitConfig;
 
+use dotenv::dotenv;
+
 use std::env;
 use std::result::Result;
 use std::result::Result::Ok;
@@ -340,6 +342,8 @@ fn version(_rate_limiter: RateLimiter) -> Json<Version> {
 
 #[launch]
 async fn rocket() -> _ {
+    dotenv().ok();
+
     match setup_logger() {
         Ok(path) => {
             println!("Logger setup at {}", path);
