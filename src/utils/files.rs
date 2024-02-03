@@ -3,25 +3,29 @@ use std::time::Duration;
 use crate::env;
 
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::Client;
-use aws_sdk_s3::{Region, Endpoint};
 use aws_sdk_s3::presigning::config::PresigningConfig;
+use aws_sdk_s3::Client;
+use aws_sdk_s3::{Endpoint, Region};
 
 pub async fn create_storage_client() -> Result<Client, aws_sdk_s3::Error> {
     let shared_config = aws_config::from_env()
         .region(RegionProviderChain::default_provider().or_else("eu-central-1"))
-        .load().await;
+        .load()
+        .await;
 
     if let Ok(endpoint_str) = env::var("CUSTOM_ENDPOINT") {
-        let region = shared_config.region().cloned().unwrap_or_else(|| Region::new("eu-central-1"));
+        let region = shared_config
+            .region()
+            .cloned()
+            .unwrap_or_else(|| Region::new("eu-central-1"));
         let credentials_provider = shared_config.credentials_provider().unwrap().clone();
         let endpoint = Endpoint::immutable(endpoint_str.parse().expect("Invalid URI"));
 
         let client_config = aws_sdk_s3::Config::builder()
-                .region(region)
-                .endpoint_resolver(endpoint)
-                .credentials_provider(credentials_provider)
-                .build();
+            .region(region)
+            .endpoint_resolver(endpoint)
+            .credentials_provider(credentials_provider)
+            .build();
 
         return Ok(Client::from_conf(client_config));
     }
