@@ -20,6 +20,10 @@ dotenv = "0.15.0"
 diesel = { version = "2.1.4", features = ["postgres", "chrono"] }
 regex = "1.10"
 
+## file things
+aws-config = "0.14.0"
+aws-sdk-s3 = "0.14.0"
+
 [dependencies.rocket]
 version = "0.5.0"
 features = ["json"]

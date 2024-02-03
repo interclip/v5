@@ -3,12 +3,17 @@ mod schema;
 mod utils;
 
 use regex::Regex;
-use rocket::http::Status;
+use rocket::http::{Header, Status};
 use rocket::response::status::Custom;
+use rocket::State;
+use utils::files::{create_storage_client, put_object};
 use utils::id::gen_id;
 use utils::log::setup_logger;
 use utils::rate_limit::RateLimitConfig;
 
+use dotenv::dotenv;
+
+use std::env;
 use std::result::Result;
 use std::result::Result::Ok;
 use std::string::String;
@@ -24,6 +29,8 @@ use crate::utils::structs::{APIResponse, APIStatus};
 
 use git2::Repository;
 
+use aws_sdk_s3::Client;
+
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
@@ -32,6 +39,60 @@ extern crate serde_json;
 extern crate rocket;
 extern crate fern;
 extern crate log;
+
+#[derive(rocket::FromForm, serde::Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct UploadQuery {
+    name: String,
+    size: Option<usize>,
+}
+
+#[get("/upload-file?<query..>")]
+async fn upload_file(
+    _rate_limiter: RateLimiter,
+    s3_client: &State<Client>,
+    query: UploadQuery,
+) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
+    if query.name.is_empty() {
+        let response = APIResponse {
+            status: APIStatus::Error,
+            result: "File name is empty".to_string(),
+        };
+        return Err(Custom(Status::BadRequest, Json(response)));
+    }
+
+    let max_size = 100 * 1024 * 1024; // 100MB
+    if let Some(size) = query.size {
+        if size > max_size {
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "File is too large".to_string(),
+            };
+            return Err(Custom(Status::PayloadTooLarge, Json(response)));
+        }
+    }
+
+    let bucket = "iclip";
+    let object_key = format!("{}/{}", gen_id(10), query.name);
+
+    match put_object(s3_client, bucket, &object_key, 60).await {
+        Ok(presigned_url) => {
+            let response = APIResponse {
+                status: APIStatus::Success,
+                result: presigned_url,
+            };
+            Ok(Json(response))
+        }
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A server-side problem has occurred".to_string(),
+            };
+            Err(Custom(Status::InternalServerError, Json(response)))
+        }
+    }
+}
 
 #[get("/status")]
 fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
@@ -302,6 +363,8 @@ fn version(_rate_limiter: RateLimiter) -> Json<Version> {
 
 #[launch]
 async fn rocket() -> _ {
+    dotenv().ok();
+
     match setup_logger() {
         Ok(path) => {
             println!("Logger setup at {}", path);
@@ -331,6 +394,8 @@ async fn rocket() -> _ {
         )
         .await;
 
+    let s3_client = create_storage_client().await.unwrap();
+
     rocket::build()
         .mount(
             "/api",
@@ -340,9 +405,19 @@ async fn rocket() -> _ {
                 get_clip_empty,
                 set_clip,
                 set_clip_get,
-                version
+                version,
+                upload_file
             ],
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(rate_limiter)
+        .attach(rocket::fairing::AdHoc::on_response(
+            "CORS headers",
+            |_, res| {
+                Box::pin(async move {
+                    res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+                })
+            },
+        ))
+        .manage(s3_client)
 }
