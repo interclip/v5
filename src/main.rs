@@ -27,8 +27,6 @@ use utils::db;
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
 
-use git2::Repository;
-
 use aws_sdk_s3::Client;
 
 extern crate rand;
@@ -40,6 +38,7 @@ extern crate rocket;
 extern crate fern;
 extern crate log;
 
+include!(concat!(env!("OUT_DIR"), "/git_commit.rs"));
 #[derive(rocket::FromForm, serde::Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct UploadQuery {
@@ -340,25 +339,9 @@ struct Version {
 
 #[get("/version")]
 fn version(_rate_limiter: RateLimiter) -> Json<Version> {
-    let repo = Repository::discover(".");
-    let commit = match repo {
-        Ok(r) => {
-            let head = r.head();
-            match head {
-                Ok(reference) => {
-                    let peeling = reference.peel_to_commit();
-                    match peeling {
-                        Ok(commit) => Some(format!("{}", commit.id())),
-                        Err(_) => None,
-                    }
-                }
-                Err(_) => None,
-            }
-        }
-        Err(_) => None,
-    };
-
-    Json(Version { commit })
+    Json(Version {
+        commit: Some(GIT_COMMIT.to_string()),
+    })
 }
 
 #[launch]
