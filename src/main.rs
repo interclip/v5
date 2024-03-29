@@ -108,10 +108,10 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
         }
     };
 
-    let code = "test".to_string();
     let url = "https://github.com".to_string();
 
-    if let Err(e) = db::insert_clip(&mut db_connection, url, code.clone()) {
+    let insert_result = db::insert_clip(&mut db_connection, url);
+    if let Err(e) = insert_result {
         error!("{}", e);
         let response = APIResponse {
             status: APIStatus::Error,
@@ -120,7 +120,7 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
         return Err(Custom(Status::InternalServerError, Json(response)));
     }
 
-    let result = db::get_clip(&mut db_connection, code);
+    let result = db::get_clip(&mut db_connection, insert_result.unwrap().code);
 
     match result {
         Ok(_) => {
@@ -240,13 +240,12 @@ fn set_clip(
         return Err(Custom(Status::InternalServerError, Json(response)));
     }
 
-    let code = gen_id(5);
-    let result = db::insert_clip(&mut db_connection, url.to_string(), code.clone());
+    let result = db::insert_clip(&mut db_connection, url.to_string());
     match result {
         Ok(_) => {
             let response = APIResponse {
                 status: APIStatus::Success,
-                result: code,
+                result: result.unwrap().code,
             };
             Ok(Json(response))
         }

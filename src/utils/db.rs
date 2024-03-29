@@ -3,8 +3,13 @@ use crate::schema::*;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::result::DatabaseErrorKind;
+use diesel::result::Error;
 
 use std::env;
+use std::fmt;
+
+use super::id::gen_id;
 
 /// Tries to connect to the database and if it doesn't exist, creates it from the current schema
 /// Returns the connection
@@ -50,25 +55,59 @@ pub fn get_clip_by_url(
         .optional()
 }
 
+#[derive(Debug)]
+pub enum InsertClipError {
+    DieselError(diesel::result::Error),
+    MaxAttemptsExceeded,
+}
+impl From<diesel::result::Error> for InsertClipError {
+    fn from(error: diesel::result::Error) -> Self {
+        InsertClipError::DieselError(error)
+    }
+}
+impl fmt::Display for InsertClipError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InsertClipError::DieselError(e) => write!(f, "Database error: {}", e),
+            InsertClipError::MaxAttemptsExceeded => write!(f, "Exceeded maximum attempts to generate a unique code."),
+        }
+    }
+}
+
 /// Inserts a clip into the database
 /// Returns the inserted clip
 pub fn insert_clip(
     connection: &mut PgConnection,
     url: String,
-    code: String,
-) -> Result<Clip, diesel::result::Error> {
+) -> Result<Clip, InsertClipError> {
     let expiry_date = chrono::Local::now().naive_local() + chrono::Duration::days(7);
-    let new_clip = NewClip {
-        url,
-        code,
-        created_at: expiry_date,
-        expires_at: None,
-    };
+    let mut attempts = 0;
+    const MAX_ATTEMPTS: usize = 10; // Maximum attempts to generate a unique code
 
-    diesel::insert_into(clips::table)
-        .values(&new_clip)
-        .get_result::<Clip>(connection)
+    while attempts < MAX_ATTEMPTS {
+        let code = gen_id(5);
+        let new_clip = NewClip {
+            url: url.clone(),
+            code: code.clone(),
+            created_at: chrono::Local::now().naive_local(),
+            expires_at: Some(expiry_date),
+        };
+
+        match diesel::insert_into(clips::table)
+            .values(&new_clip)
+            .get_result::<Clip>(connection).map_err(InsertClipError::from) {
+                Ok(clip) => return Ok(clip),
+                Err(InsertClipError::DieselError(Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _))) => {
+                    attempts += 1;
+                    continue;
+                },
+                Err(e) => return Err(e), // For any other diesel error, return immediately
+        }
+    }
+
+    Err(InsertClipError::MaxAttemptsExceeded)
 }
+
 
 /// Deletes expired clips from the database
 pub fn collect_garbage(connection: &mut PgConnection) -> Result<usize, diesel::result::Error> {
