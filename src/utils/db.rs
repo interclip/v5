@@ -69,3 +69,10 @@ pub fn insert_clip(
         .values(&new_clip)
         .get_result::<Clip>(connection)
 }
+
+/// Deletes expired clips from the database
+pub fn collect_garbage(connection: &mut PgConnection) -> Result<usize, diesel::result::Error> {
+    use crate::schema::clips::dsl::*;
+
+    diesel::delete(clips.filter(expires_at.is_not_null().and(expires_at.lt(chrono::Local::now().naive_local())))).execute(connection)
+}

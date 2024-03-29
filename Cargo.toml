@@ -19,6 +19,7 @@ fern = "0.5"
 dotenv = "0.15.0"
 diesel = { version = "2.1.4", features = ["postgres", "chrono"] }
 regex = "1.10"
+clokwerk = "0.3.5"
 
 ## file things
 aws-config = "0.14.0"

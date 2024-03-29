@@ -2,6 +2,7 @@ mod models;
 mod schema;
 mod utils;
 
+use clokwerk::{Scheduler, TimeUnits};
 use regex::Regex;
 use rocket::http::{Header, Status};
 use rocket::response::status::Custom;
@@ -22,7 +23,7 @@ use std::time::Duration;
 use rocket::form::Form;
 use rocket::serde::json::Json;
 
-use utils::db;
+use utils::db::{self, collect_garbage};
 
 use crate::utils::rate_limit::RateLimiter;
 use crate::utils::structs::{APIResponse, APIStatus};
@@ -378,6 +379,12 @@ async fn rocket() -> _ {
         .await;
 
     let s3_client = create_storage_client().await.unwrap();
+
+    let mut db_connection = db::initialize().expect("Failed to connect to the database");
+    let mut scheduler = Scheduler::with_tz(chrono::Utc);
+    scheduler.every(1.hour()).run(move || {
+        let _ = collect_garbage(&mut db_connection);
+    });
 
     rocket::build()
         .mount(
