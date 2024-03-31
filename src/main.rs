@@ -142,17 +142,6 @@ fn status(_rate_limiter: RateLimiter) -> Result<Json<APIResponse>, Custom<Json<A
     }
 }
 
-#[get("/set")]
-fn set_clip_get() -> Result<Json<APIResponse>, Custom<Json<APIResponse>>> {
-    Err(Custom(
-        Status::MethodNotAllowed,
-        Json(APIResponse {
-            status: APIStatus::Error,
-            result: "For creating clips, only POST is allowed".to_string(),
-        }),
-    ))
-}
-
 #[catch(429)]
 fn too_many_requests() -> Json<APIResponse> {
     Json(APIResponse {
@@ -174,7 +163,7 @@ struct SetClipRequest {
     url: String,
 }
 
-#[post("/set", data = "<form_data>")]
+#[post("/clip", data = "<form_data>")]
 fn set_clip(
     form_data: Form<SetClipRequest>,
     _rate_limiter: RateLimiter,
@@ -260,7 +249,7 @@ fn set_clip(
     }
 }
 
-#[get("/get?<code>")]
+#[get("/clip?<code>")]
 fn get_clip(
     code: String,
     _rate_limiter: RateLimiter,
@@ -393,7 +382,6 @@ async fn rocket() -> _ {
                 get_clip,
                 get_clip_empty,
                 set_clip,
-                set_clip_get,
                 version,
                 upload_file
             ],
