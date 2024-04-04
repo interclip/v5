@@ -8,7 +8,7 @@ fn main() {
     // Get the directory where the output will be placed.
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("git_commit.rs");
-    let mut f = File::create(&dest_path).unwrap();
+    let mut f = File::create(dest_path).unwrap();
 
     // Use git to get the current commit hash.
     let git_output = Command::new("git")
