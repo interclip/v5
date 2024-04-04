@@ -108,6 +108,17 @@ pub fn insert_clip(
     Err(InsertClipError::MaxAttemptsExceeded)
 }
 
+/// Returns the highest ID in the clips table
+pub fn get_total_clip_count (connection: &mut PgConnection) -> Result<i32, diesel::result::Error> {
+    use crate::schema::clips::dsl::*;
+
+    clips
+        .select(diesel::dsl::max(id))
+        .first::<Option<i32>>(connection)
+        .expect("Failed to retrieve the last clip id")
+        .ok_or(diesel::result::Error::NotFound)
+}
+
 
 /// Deletes expired clips from the database
 pub fn collect_garbage(connection: &mut PgConnection) -> Result<usize, diesel::result::Error> {

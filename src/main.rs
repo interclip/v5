@@ -7,6 +7,7 @@ use regex::Regex;
 use rocket::http::{Header, Status};
 use rocket::response::status::Custom;
 use rocket::State;
+use serde::Serialize;
 use utils::files::{create_storage_client, put_object};
 use utils::id::gen_id;
 use utils::log::setup_logger;
@@ -310,7 +311,7 @@ fn get_clip(
     }
 }
 
-#[get("/get")]
+#[get("/clip")]
 fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse>>> {
     Err(Custom(
         Status::BadRequest,
@@ -319,6 +320,44 @@ fn get_clip_empty() -> Result<Custom<Json<APIResponse>>, Custom<Json<APIResponse
             result: "No clip code provided in the request.".to_string(),
         }),
     ))
+}
+
+#[derive(Serialize)]
+struct StatsResponse {
+    total_clips: serde_json::Value,
+}
+
+#[get("/stats")]
+fn get_service_stats(_rate_limiter: RateLimiter) -> Result<Custom<Json<StatsResponse>>, Custom<Json<APIResponse>>> {
+    let mut db_connection = match db::initialize() {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", err);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            return Err(Custom(Status::InternalServerError, Json(response)));
+        }
+    };
+
+    let stats = db::get_total_clip_count(&mut db_connection);
+    match stats {
+        Ok(stats) => {
+            let response = StatsResponse {
+                   total_clips: serde_json::to_value(stats).unwrap()
+            };
+            Ok(Custom(Status::Ok, Json(response)))
+        }
+        Err(e) => {
+            error!("{}", e);
+            let response = APIResponse {
+                status: APIStatus::Error,
+                result: "A problem with the database has occurred".to_string(),
+            };
+            Err(Custom(Status::InternalServerError, Json(response)))
+        }
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -349,20 +388,20 @@ async fn rocket() -> _ {
     let rate_limiter = RateLimiter::new();
     rate_limiter
         .add_config(
-            "/api/get",
-            RateLimitConfig::new(Duration::from_secs(30), 100),
-        )
-        .await;
-    rate_limiter
-        .add_config(
-            "/api/set",
-            RateLimitConfig::new(Duration::from_secs(60), 20),
+            "/api/clip",
+            RateLimitConfig::new(Duration::from_secs(30), 50),
         )
         .await;
     rate_limiter
         .add_config(
             "/api/status",
             RateLimitConfig::new(Duration::from_secs(30), 20),
+        )
+        .await;
+    rate_limiter
+        .add_config(
+            "/api/stats",
+            RateLimitConfig::new(Duration::from_secs(30), 100),
         )
         .await;
 
@@ -383,16 +422,18 @@ async fn rocket() -> _ {
                 get_clip_empty,
                 set_clip,
                 version,
+                get_service_stats,
                 upload_file
             ],
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(rate_limiter)
         .attach(rocket::fairing::AdHoc::on_response(
-            "CORS headers",
+            "Headers",
             |_, res| {
                 Box::pin(async move {
-                    res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+                    // CORS headers
+                    res.set_header(Header::new("Access-Control-Allow-Origin", "*"));  
                 })
             },
         ))
