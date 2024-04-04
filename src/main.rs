@@ -328,7 +328,9 @@ struct StatsResponse {
 }
 
 #[get("/stats")]
-fn get_service_stats(_rate_limiter: RateLimiter) -> Result<Custom<Json<StatsResponse>>, Custom<Json<APIResponse>>> {
+fn get_service_stats(
+    _rate_limiter: RateLimiter,
+) -> Result<Custom<Json<StatsResponse>>, Custom<Json<APIResponse>>> {
     let mut db_connection = match db::initialize() {
         Ok(conn) => conn,
         Err(err) => {
@@ -345,7 +347,7 @@ fn get_service_stats(_rate_limiter: RateLimiter) -> Result<Custom<Json<StatsResp
     match stats {
         Ok(stats) => {
             let response = StatsResponse {
-                   total_clips: serde_json::to_value(stats).unwrap()
+                total_clips: serde_json::to_value(stats).unwrap(),
             };
             Ok(Custom(Status::Ok, Json(response)))
         }
@@ -428,14 +430,11 @@ async fn rocket() -> _ {
         )
         .register("/", catchers![too_many_requests, not_found])
         .manage(rate_limiter)
-        .attach(rocket::fairing::AdHoc::on_response(
-            "Headers",
-            |_, res| {
-                Box::pin(async move {
-                    // CORS headers
-                    res.set_header(Header::new("Access-Control-Allow-Origin", "*"));  
-                })
-            },
-        ))
+        .attach(rocket::fairing::AdHoc::on_response("Headers", |_, res| {
+            Box::pin(async move {
+                // CORS headers
+                res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+            })
+        }))
         .manage(s3_client)
 }

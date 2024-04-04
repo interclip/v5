@@ -16,7 +16,9 @@ fn main() {
         .output()
         .expect("Failed to execute git command");
 
-    let git_hash = String::from_utf8_lossy(&git_output.stdout).trim().to_string();
+    let git_hash = String::from_utf8_lossy(&git_output.stdout)
+        .trim()
+        .to_string();
 
     // Write the git hash to a file as a constant.
     writeln!(f, "pub const GIT_COMMIT: &str = \"{}\";", git_hash).unwrap();

@@ -69,17 +69,16 @@ impl fmt::Display for InsertClipError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             InsertClipError::DieselError(e) => write!(f, "Database error: {}", e),
-            InsertClipError::MaxAttemptsExceeded => write!(f, "Exceeded maximum attempts to generate a unique code."),
+            InsertClipError::MaxAttemptsExceeded => {
+                write!(f, "Exceeded maximum attempts to generate a unique code.")
+            }
         }
     }
 }
 
 /// Inserts a clip into the database
 /// Returns the inserted clip
-pub fn insert_clip(
-    connection: &mut PgConnection,
-    url: String,
-) -> Result<Clip, InsertClipError> {
+pub fn insert_clip(connection: &mut PgConnection, url: String) -> Result<Clip, InsertClipError> {
     let expiry_date = chrono::Local::now().naive_local() + chrono::Duration::days(7);
     let mut attempts = 0;
     const MAX_ATTEMPTS: usize = 10; // Maximum attempts to generate a unique code
@@ -95,13 +94,18 @@ pub fn insert_clip(
 
         match diesel::insert_into(clips::table)
             .values(&new_clip)
-            .get_result::<Clip>(connection).map_err(InsertClipError::from) {
-                Ok(clip) => return Ok(clip),
-                Err(InsertClipError::DieselError(Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _))) => {
-                    attempts += 1;
-                    continue;
-                },
-                Err(e) => return Err(e), // For any other diesel error, return immediately
+            .get_result::<Clip>(connection)
+            .map_err(InsertClipError::from)
+        {
+            Ok(clip) => return Ok(clip),
+            Err(InsertClipError::DieselError(Error::DatabaseError(
+                DatabaseErrorKind::UniqueViolation,
+                _,
+            ))) => {
+                attempts += 1;
+                continue;
+            }
+            Err(e) => return Err(e), // For any other diesel error, return immediately
         }
     }
 
@@ -109,7 +113,7 @@ pub fn insert_clip(
 }
 
 /// Returns the highest ID in the clips table
-pub fn get_total_clip_count (connection: &mut PgConnection) -> Result<i32, diesel::result::Error> {
+pub fn get_total_clip_count(connection: &mut PgConnection) -> Result<i32, diesel::result::Error> {
     use crate::schema::clips::dsl::*;
 
     clips
@@ -119,10 +123,16 @@ pub fn get_total_clip_count (connection: &mut PgConnection) -> Result<i32, diese
         .ok_or(diesel::result::Error::NotFound)
 }
 
-
 /// Deletes expired clips from the database
 pub fn collect_garbage(connection: &mut PgConnection) -> Result<usize, diesel::result::Error> {
     use crate::schema::clips::dsl::*;
 
-    diesel::delete(clips.filter(expires_at.is_not_null().and(expires_at.lt(chrono::Local::now().naive_local())))).execute(connection)
+    diesel::delete(
+        clips.filter(
+            expires_at
+                .is_not_null()
+                .and(expires_at.lt(chrono::Local::now().naive_local())),
+        ),
+    )
+    .execute(connection)
 }
